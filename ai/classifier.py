@@ -35,7 +35,7 @@ _ANOMALY_PROMPT = (
     "인물이 있다면: 추정 성별, 나이대, 옷 색상과 스타일, 머리 모양, 안경 착용 여부, 현재 동작과 자세. "
     "배경: 실내/실외 여부, 보이는 가구나 사물 (책상, 의자, 벽 색상 등), 조명 상태. "
     "반드시 JSON으로만 답하세요 (마크다운 금지): "
-    '{"is_anomaly": false, "event_type": "scene", "description": "한국어 2-3문장 상황 묘사", "confidence": 0.9}' "
+    '{\"is_anomaly\": false, \"event_type\": \"scene\", \"description\": \"한국어 2-3문장 상황 묘사\", \"confidence\": 0.9} '
     "description은 반드시 구체적인 장면 묘사여야 합니다. 절대 '정상'이라는 단어만 쓰지 마세요."
 )
 

@@ -7,3 +7,5 @@ restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 healthcheckPath = "/health"
 healthcheckTimeout = 120
+
+# rebuild trigger: Mon Mar 30 15:01:26 KST 2026

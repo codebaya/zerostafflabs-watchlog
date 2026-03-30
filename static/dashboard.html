@@ -676,6 +676,7 @@ function Dashboard({ token, onLogout }) {
   const [showModal, setShowModal] = useState(false);
   const [showScreen, setShowScreen] = useState(false);
   const [webcams, setWebcams] = useState([]); // {camera, deviceId}
+  const [liveCamera, setLiveCamera] = useState(null); // 라이브 뷰 모달용 {camera, deviceId}
   const chartRef = useRef(null);
   const chartInst = useRef(null);
 
@@ -776,23 +777,25 @@ function Dashboard({ token, onLogout }) {
                 </div>
               ) : regularCameras.map(c => (
                 <div key={c.id} className="cam-item"
-                  style={{cursor: c.location==='브라우저 웹캠' ? 'pointer' : 'default'}}
+                  style={{cursor:'pointer', transition:'background 0.15s'}}
+                  onMouseEnter={e => e.currentTarget.style.background='rgba(59,130,246,0.06)'}
+                  onMouseLeave={e => e.currentTarget.style.background=''}
                   onClick={() => {
-                    if (c.location === '브라우저 웹캠') {
-                      // 브라우저 웹캠 카드 클릭 → WebcamAnalyzer 시작
-                      navigator.mediaDevices.getUserMedia({ video: true })
-                        .then(s => {
-                          const devId = s.getVideoTracks()[0]?.getSettings?.()?.deviceId || '';
-                          s.getTracks().forEach(t => t.stop());
-                          setWebcams(w => w.some(x=>x.camera.id===c.id) ? w : [...w, { camera: c, deviceId: devId }]);
-                        })
-                        .catch(() => {});
-                    }
+                    navigator.mediaDevices.getUserMedia({ video: true })
+                      .then(s => {
+                        const devId = s.getVideoTracks()[0]?.getSettings?.()?.deviceId || '';
+                        s.getTracks().forEach(t => t.stop());
+                        setLiveCamera({ camera: c, deviceId: devId });
+                      })
+                      .catch(() => {
+                        // 카메라 권한 없어도 모달 열기 (디바이스ID 없이)
+                        setLiveCamera({ camera: c, deviceId: null });
+                      });
                   }}>
                   <div>
                     <div className="cam-name">{c.name}</div>
                     {c.location && <div className="cam-sub">{c.location}</div>}
-                    {c.location === '브라우저 웹캠' && <div style={{fontSize:'.65rem',color:'#3b82f6',marginTop:'.2rem'}}>클릭해서 화면 분석 시작</div>}
+                    <div style={{fontSize:'.65rem',color:'#3b82f6',marginTop:'.2rem'}}>▶ 클릭해서 라이브 뷰 열기</div>
                   </div>
                   <span className={`badge ${c.enabled!==false?'badge-green':'badge-gray'}`}>
                     {c.enabled!==false?'활성':'비활성'}
@@ -825,6 +828,33 @@ function Dashboard({ token, onLogout }) {
           </div>
         </>)}
       </div>
+      {liveCamera && (
+        <div className="overlay" onClick={e=>{if(e.target===e.currentTarget) setLiveCamera(null);}}>
+          <div style={{background:'#0f172a',borderRadius:'14px',overflow:'hidden',border:'1px solid #334155',width:'100%',maxWidth:'960px',maxHeight:'90vh',display:'flex',flexDirection:'column'}}>
+            <div style={{padding:'.8rem 1.2rem',display:'flex',alignItems:'center',gap:'1rem',background:'#1e293b',borderBottom:'1px solid #334155'}}>
+              <span style={{fontWeight:700,color:'#e2e8f0',fontSize:'1rem'}}>📹 {liveCamera.camera.name} — 라이브 뷰</span>
+              <span style={{fontSize:'.75rem',color:'#64748b'}}>{liveCamera.camera.location}</span>
+              <button style={{marginLeft:'auto',background:'transparent',border:'none',color:'#94a3b8',fontSize:'1.4rem',cursor:'pointer',lineHeight:1}} onClick={()=>setLiveCamera(null)}>✕</button>
+            </div>
+            <div style={{overflowY:'auto',flex:1}}>
+              {liveCamera.deviceId
+                ? <WebcamAnalyzer camera={liveCamera.camera} deviceId={liveCamera.deviceId} token={token} onAlert={handleWebcamAlert} />
+                : <div style={{padding:'3rem',textAlign:'center',color:'#94a3b8'}}>
+                    <div style={{fontSize:'3rem',marginBottom:'1rem'}}>📷</div>
+                    <div style={{fontWeight:600,marginBottom:'.5rem'}}>카메라 권한이 필요합니다</div>
+                    <div style={{fontSize:'.875rem'}}>브라우저에서 카메라 접근을 허용해주세요</div>
+                    <button style={{marginTop:'1rem',padding:'.6rem 1.5rem',background:'#3b82f6',color:'#fff',border:'none',borderRadius:'8px',cursor:'pointer',fontWeight:600}}
+                      onClick={()=>{
+                        navigator.mediaDevices.getUserMedia({video:true})
+                          .then(s=>{const id=s.getVideoTracks()[0]?.getSettings?.()?.deviceId||'';s.getTracks().forEach(t=>t.stop());setLiveCamera(lv=>({...lv,deviceId:id}));})
+                          .catch(()=>{});
+                      }}>카메라 권한 허용</button>
+                  </div>
+              }
+            </div>
+          </div>
+        </div>
+      )}
       {showModal && <AddCameraModal token={token} onClose={()=>setShowModal(false)} onAdded={handleAdded} />}
     </>
   );
