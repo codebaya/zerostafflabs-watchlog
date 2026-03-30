@@ -268,14 +268,25 @@ function AddCameraModal({ token, onClose, onAdded }) {
     setErr(''); setSaving(true);
     try {
       let body;
-      if (tab === 'webcam') body = { name: camName.trim(), rtsp_url: 'browser://webcam', location: '브라우저 웹캠' };
+      if (tab === 'webcam') body = { name: camName.trim(), rtsp_url: `browser://webcam/${deviceId.slice(0,16) || Date.now()}`, location: '브라우저 웹캠' };
       else if (tab === 'iphone') body = { name: iphoneName.trim(), rtsp_url: iphoneUrl.trim(), location: 'iPhone' };
       else body = { name: rtspName.trim(), rtsp_url: rtspUrl.trim(), location: rtspLoc.trim() || null };
 
       const cam = await apiFetch('/cameras', { method: 'POST', body: JSON.stringify(body) }, token);
       stopStream();
       onAdded(cam, tab === 'webcam' ? deviceId : null);
-    } catch (e) { setErr(String(e)); }
+    } catch (e) {
+      const msg = String(e);
+      if (msg.includes('500')) {
+        // 중복 등록 → 기존 카메라 재사용
+        try {
+          const existing = await apiFetch('/cameras', {}, token);
+          const match = existing.find(c => c.location === '브라우저 웹캠');
+          if (match) { stopStream(); onAdded(match, deviceId || null); return; }
+        } catch(_) {}
+      }
+      setErr(msg);
+    }
     finally { setSaving(false); }
   };
 
@@ -764,10 +775,24 @@ function Dashboard({ token, onLogout }) {
                   <span style={{fontSize:'.8rem',marginTop:'.5rem',display:'block'}}>상단 "+ 카메라 추가" 버튼을 눌러 시작하세요</span>
                 </div>
               ) : regularCameras.map(c => (
-                <div key={c.id} className="cam-item">
+                <div key={c.id} className="cam-item"
+                  style={{cursor: c.location==='브라우저 웹캠' ? 'pointer' : 'default'}}
+                  onClick={() => {
+                    if (c.location === '브라우저 웹캠') {
+                      // 브라우저 웹캠 카드 클릭 → WebcamAnalyzer 시작
+                      navigator.mediaDevices.getUserMedia({ video: true })
+                        .then(s => {
+                          const devId = s.getVideoTracks()[0]?.getSettings?.()?.deviceId || '';
+                          s.getTracks().forEach(t => t.stop());
+                          setWebcams(w => w.some(x=>x.camera.id===c.id) ? w : [...w, { camera: c, deviceId: devId }]);
+                        })
+                        .catch(() => {});
+                    }
+                  }}>
                   <div>
                     <div className="cam-name">{c.name}</div>
                     {c.location && <div className="cam-sub">{c.location}</div>}
+                    {c.location === '브라우저 웹캠' && <div style={{fontSize:'.65rem',color:'#3b82f6',marginTop:'.2rem'}}>클릭해서 화면 분석 시작</div>}
                   </div>
                   <span className={`badge ${c.enabled!==false?'badge-green':'badge-gray'}`}>
                     {c.enabled!==false?'활성':'비활성'}
