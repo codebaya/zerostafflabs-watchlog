@@ -9,141 +9,383 @@
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
-    .app { display: flex; flex-direction: column; min-height: 100vh; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
     /* Login */
-    .login-wrap { display: flex; align-items: center; justify-content: center; flex: 1; padding: 2rem; }
-    .login-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 2.5rem; width: 100%; max-width: 400px; }
-    .logo { font-size: 2rem; font-weight: 800; color: #38bdf8; margin-bottom: 0.25rem; }
-    .logo span { color: #e2e8f0; }
-    .tagline { color: #94a3b8; font-size: 0.875rem; margin-bottom: 2rem; }
-    .form-group { margin-bottom: 1rem; }
-    .form-group label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    .form-group input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 0.75rem 1rem; color: #e2e8f0; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
-    .form-group input:focus { border-color: #38bdf8; }
-    .btn { width: 100%; background: #0ea5e9; color: white; border: none; border-radius: 8px; padding: 0.85rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-    .btn:hover { background: #0284c7; }
-    .btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
-    .error-msg { background: #450a0a; border: 1px solid #7f1d1d; border-radius: 8px; padding: 0.75rem; color: #fca5a5; font-size: 0.85rem; margin-bottom: 1rem; }
-    /* Dashboard */
-    .header { background: #1e293b; border-bottom: 1px solid #334155; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
-    .header-logo { font-size: 1.25rem; font-weight: 800; color: #38bdf8; }
-    .header-logo span { color: #e2e8f0; }
-    .header-right { display: flex; align-items: center; gap: 1rem; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block; margin-right: 0.5rem; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-    .btn-sm { background: transparent; border: 1px solid #334155; color: #94a3b8; border-radius: 6px; padding: 0.4rem 0.9rem; font-size: 0.8rem; cursor: pointer; }
-    .btn-sm:hover { border-color: #64748b; color: #e2e8f0; }
-    .main { padding: 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-    .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 1.25rem; }
-    .stat-label { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-    .stat-value { font-size: 2rem; font-weight: 700; color: #e2e8f0; }
-    .stat-value.green { color: #22c55e; }
-    .stat-value.yellow { color: #fbbf24; }
-    .stat-value.red { color: #f87171; }
-    .section-title { font-size: 1rem; font-weight: 600; color: #94a3b8; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
-    @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
-    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 1.5rem; }
-    .camera-list { display: flex; flex-direction: column; gap: 0.75rem; }
-    .camera-item { display: flex; align-items: center; justify-content: space-between; background: #0f172a; border-radius: 8px; padding: 0.875rem 1rem; }
-    .camera-name { font-weight: 500; font-size: 0.9rem; }
-    .camera-url { font-size: 0.75rem; color: #64748b; margin-top: 0.2rem; }
-    .badge { border-radius: 20px; padding: 0.2rem 0.7rem; font-size: 0.75rem; font-weight: 600; }
-    .badge-green { background: #14532d; color: #86efac; }
-    .badge-gray { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
-    .alert-list { display: flex; flex-direction: column; gap: 0.6rem; }
-    .alert-item { display: flex; align-items: flex-start; gap: 0.75rem; background: #0f172a; border-radius: 8px; padding: 0.75rem 1rem; }
-    .alert-icon { font-size: 1.25rem; flex-shrink: 0; margin-top: 0.1rem; }
-    .alert-desc { font-size: 0.875rem; font-weight: 500; }
-    .alert-meta { font-size: 0.75rem; color: #64748b; margin-top: 0.2rem; }
-    .empty-state { text-align: center; color: #475569; padding: 2rem; font-size: 0.875rem; }
-    .add-camera-form { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; border-top: 1px solid #334155; padding-top: 1rem; }
-    .input-row { display: flex; gap: 0.5rem; }
-    .input-sm { flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 0.6rem 0.75rem; color: #e2e8f0; font-size: 0.85rem; outline: none; }
-    .input-sm:focus { border-color: #38bdf8; }
-    .btn-add { background: #0ea5e9; color: white; border: none; border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
-    .btn-add:hover { background: #0284c7; }
-    .loading { text-align: center; color: #475569; padding: 1.5rem; }
-    canvas { max-height: 200px; }
+    .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+    .login-card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:2.5rem;width:100%;max-width:400px}
+    .logo{font-size:2rem;font-weight:800;color:#38bdf8;margin-bottom:.25rem}
+    .logo span{color:#e2e8f0}
+    .tagline{color:#94a3b8;font-size:.875rem;margin-bottom:2rem}
+    .form-group{margin-bottom:1rem}
+    .form-group label{display:block;font-size:.8rem;color:#94a3b8;margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.05em}
+    input,select{width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.75rem 1rem;color:#e2e8f0;font-size:.9rem;outline:none;transition:border-color .2s}
+    input:focus,select:focus{border-color:#38bdf8}
+    .btn{width:100%;background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:.85rem;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .2s}
+    .btn:hover{background:#0284c7}
+    .btn:disabled{background:#334155;color:#64748b;cursor:not-allowed}
+    .err{background:#450a0a;border:1px solid #7f1d1d;border-radius:8px;padding:.75rem;color:#fca5a5;font-size:.85rem;margin-bottom:1rem}
+    /* Header */
+    .header{background:#1e293b;border-bottom:1px solid #334155;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+    .header-logo{font-size:1.25rem;font-weight:800;color:#38bdf8}
+    .header-logo span{color:#e2e8f0}
+    .header-right{display:flex;align-items:center;gap:.75rem}
+    .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:.4rem;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+    .btn-sm{background:transparent;border:1px solid #334155;color:#94a3b8;border-radius:6px;padding:.4rem .9rem;font-size:.8rem;cursor:pointer;white-space:nowrap}
+    .btn-sm:hover{border-color:#64748b;color:#e2e8f0}
+    .btn-primary-sm{background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:.4rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer}
+    .btn-primary-sm:hover{background:#0284c7}
+    /* Main layout */
+    .main{padding:1.5rem 2rem;max-width:1200px;margin:0 auto}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem}
+    .stat-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.25rem}
+    .stat-label{font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}
+    .stat-val{font-size:1.75rem;font-weight:700}
+    .green{color:#22c55e}.yellow{color:#fbbf24}.blue{color:#38bdf8}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+    @media(max-width:768px){.grid2{grid-template-columns:1fr}}
+    .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.5rem}
+    .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+    .section-title{font-size:.85rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em}
+    /* Camera list */
+    .cam-item{display:flex;align-items:center;justify-content:space-between;background:#0f172a;border-radius:8px;padding:.75rem 1rem;margin-bottom:.5rem}
+    .cam-name{font-weight:500;font-size:.9rem}
+    .cam-sub{font-size:.75rem;color:#64748b;margin-top:.15rem}
+    .badge{border-radius:20px;padding:.2rem .6rem;font-size:.72rem;font-weight:600}
+    .badge-green{background:#14532d;color:#86efac}
+    .badge-blue{background:#0c4a6e;color:#7dd3fc}
+    .badge-gray{background:#1e293b;color:#94a3b8;border:1px solid #334155}
+    /* Alert list */
+    .alert-item{display:flex;gap:.75rem;background:#0f172a;border-radius:8px;padding:.75rem 1rem;margin-bottom:.5rem}
+    .alert-icon{font-size:1.2rem;flex-shrink:0}
+    .alert-desc{font-size:.875rem;font-weight:500}
+    .alert-meta{font-size:.72rem;color:#64748b;margin-top:.15rem}
+    .empty{text-align:center;color:#475569;padding:2rem;font-size:.875rem}
+    /* Modal */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem}
+    .modal{background:#1e293b;border:1px solid #334155;border-radius:12px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid #334155}
+    .modal-title{font-size:1rem;font-weight:700}
+    .close-btn{background:none;border:none;color:#64748b;cursor:pointer;font-size:1.25rem;line-height:1}
+    .modal-body{padding:1.5rem}
+    /* Tabs */
+    .tabs{display:flex;gap:.5rem;margin-bottom:1.5rem}
+    .tab{flex:1;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.6rem;font-size:.82rem;font-weight:500;cursor:pointer;color:#94a3b8;text-align:center;transition:all .15s}
+    .tab.active{background:#0c4a6e;border-color:#0ea5e9;color:#7dd3fc}
+    .tab:hover:not(.active){border-color:#475569;color:#e2e8f0}
+    /* Video preview */
+    .video-wrap{background:#000;border-radius:8px;overflow:hidden;margin-bottom:1rem;position:relative;aspect-ratio:4/3}
+    video{width:100%;height:100%;object-fit:cover}
+    .video-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);font-size:.875rem;color:#94a3b8}
+    .analysis-badge{position:absolute;top:.5rem;right:.5rem;border-radius:6px;padding:.25rem .6rem;font-size:.75rem;font-weight:700}
+    .analysis-ok{background:#14532d;color:#86efac}
+    .analysis-alert{background:#7f1d1d;color:#fca5a5;animation:pulse .5s infinite}
+    /* Form helpers */
+    .field{margin-bottom:1rem}
+    .field label{display:block;font-size:.8rem;color:#94a3b8;margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.05em}
+    .row{display:flex;gap:.5rem}
+    .row input,.row select{flex:1}
+    .iphone-guide{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:1rem;font-size:.82rem;line-height:1.6;color:#94a3b8}
+    .iphone-guide strong{color:#e2e8f0}
+    .iphone-guide code{background:#1e293b;border-radius:4px;padding:.1rem .4rem;font-size:.8rem;color:#38bdf8}
+    .modal-footer{display:flex;gap:.5rem;justify-content:flex-end;padding:1rem 1.5rem;border-top:1px solid #334155}
+    .btn-modal{border-radius:8px;padding:.6rem 1.25rem;font-size:.875rem;font-weight:600;cursor:pointer;border:none}
+    .btn-cancel{background:transparent;border:1px solid #334155;color:#94a3b8}
+    .btn-cancel:hover{border-color:#64748b;color:#e2e8f0}
+    .btn-confirm{background:#0ea5e9;color:#fff}
+    .btn-confirm:hover{background:#0284c7}
+    .btn-confirm:disabled{background:#334155;color:#64748b;cursor:not-allowed}
+    canvas{display:none}
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
-const API = '';
-
-async function apiCall(path, opts = {}, token = null) {
-  const headers = { 'Content-Type': 'application/json' };
+/* ── API helpers ─────────────────────────────────────── */
+async function apiFetch(path, opts = {}, token = null) {
+  const headers = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(API + path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const res = await fetch(path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+  if (!res.ok) { const t = await res.text(); throw new Error(`${res.status}: ${t}`); }
   return res.json();
 }
 
+async function postFrame(cameraId, blob, token) {
+  const fd = new FormData();
+  fd.append('camera_id', String(cameraId));
+  fd.append('frame', blob, 'frame.jpg');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch('/cameras/frame', { method: 'POST', headers, body: fd });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+/* ── Login ───────────────────────────────────────────── */
 function LoginPage({ onLogin }) {
   const [key, setKey] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e) => {
+  const [err, setErr] = useState('');
+  const submit = async (e) => {
     e.preventDefault();
     if (!key.trim()) return;
-    setLoading(true); setError('');
+    setLoading(true); setErr('');
     try {
-      const data = await apiCall('/api/auth/token', {
-        method: 'POST',
-        body: JSON.stringify({ api_key: key.trim() })
-      });
-      onLogin(data.access_token, key.trim());
-    } catch (err) {
-      setError('API 키가 올바르지 않습니다. 다시 확인해주세요.');
-    } finally { setLoading(false); }
+      const d = await apiFetch('/api/auth/token', { method: 'POST', body: JSON.stringify({ api_key: key.trim() }) });
+      onLogin(d.access_token);
+    } catch { setErr('API 키가 올바르지 않습니다.'); }
+    finally { setLoading(false); }
   };
-
   return (
     <div className="login-wrap">
       <div className="login-card">
         <div className="logo">Watch<span>Log</span></div>
         <div className="tagline">AI 기반 CCTV 이상 감지 플랫폼</div>
-        {error && <div className="error-msg">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>API 키</label>
-            <input
-              type="password"
-              value={key}
-              onChange={e => setKey(e.target.value)}
-              placeholder="API 키를 입력하세요"
-              autoFocus
-            />
+        {err && <div className="err">{err}</div>}
+        <form onSubmit={submit}>
+          <div className="form-group"><label>API 키</label>
+            <input type="password" value={key} onChange={e=>setKey(e.target.value)} placeholder="API 키 입력" autoFocus />
           </div>
-          <button className="btn" type="submit" disabled={loading || !key.trim()}>
-            {loading ? '인증 중...' : '로그인'}
-          </button>
+          <button className="btn" disabled={loading||!key.trim()}>{loading?'인증 중…':'로그인'}</button>
         </form>
       </div>
     </div>
   );
 }
 
-function Dashboard({ token, apiKey, onLogout }) {
+/* ── Add Camera Modal ────────────────────────────────── */
+function AddCameraModal({ token, onClose, onAdded }) {
+  const [tab, setTab] = useState('webcam'); // webcam | iphone | rtsp
+  const [devices, setDevices] = useState([]);
+  const [deviceId, setDeviceId] = useState('');
+  const [stream, setStream] = useState(null);
+  const [camName, setCamName] = useState('');
+  const [rtspUrl, setRtspUrl] = useState('');
+  const [rtspName, setRtspName] = useState('');
+  const [rtspLoc, setRtspLoc] = useState('');
+  const [iphoneUrl, setIphoneUrl] = useState('');
+  const [iphoneName, setIphoneName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const videoRef = useRef(null);
+
+  // Enumerate cameras
+  useEffect(() => {
+    navigator.mediaDevices?.enumerateDevices().then(devs => {
+      const cams = devs.filter(d => d.kind === 'videoinput');
+      setDevices(cams);
+      if (cams.length) setDeviceId(cams[0].deviceId);
+    }).catch(() => {});
+  }, []);
+
+  // Start webcam stream when tab=webcam
+  useEffect(() => {
+    if (tab !== 'webcam') { stopStream(); return; }
+    if (!deviceId) return;
+    startStream(deviceId);
+    return stopStream;
+  }, [tab, deviceId]);
+
+  const startStream = async (id) => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: id } } });
+      setStream(s);
+      if (videoRef.current) videoRef.current.srcObject = s;
+    } catch (e) { setErr('카메라 접근 권한이 필요합니다.'); }
+  };
+  const stopStream = () => {
+    setStream(s => { s?.getTracks().forEach(t => t.stop()); return null; });
+  };
+
+  const canSave = () => {
+    if (tab === 'webcam') return camName.trim() && stream;
+    if (tab === 'iphone') return iphoneName.trim() && iphoneUrl.trim();
+    return rtspName.trim() && rtspUrl.trim();
+  };
+
+  const save = async () => {
+    setErr(''); setSaving(true);
+    try {
+      let body;
+      if (tab === 'webcam') body = { name: camName.trim(), rtsp_url: 'browser://webcam', location: '브라우저 웹캠' };
+      else if (tab === 'iphone') body = { name: iphoneName.trim(), rtsp_url: iphoneUrl.trim(), location: 'iPhone' };
+      else body = { name: rtspName.trim(), rtsp_url: rtspUrl.trim(), location: rtspLoc.trim() || null };
+
+      const cam = await apiFetch('/cameras', { method: 'POST', body: JSON.stringify(body) }, token);
+      stopStream();
+      onAdded(cam, tab === 'webcam' ? deviceId : null);
+    } catch (e) { setErr(String(e)); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="overlay" onClick={e => { if (e.target===e.currentTarget){stopStream();onClose();} }}>
+      <div className="modal">
+        <div className="modal-header">
+          <span className="modal-title">카메라 추가</span>
+          <button className="close-btn" onClick={()=>{stopStream();onClose();}}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="tabs">
+            <button className={`tab${tab==='webcam'?' active':''}`} onClick={()=>setTab('webcam')}>💻 웹캠/맥북</button>
+            <button className={`tab${tab==='iphone'?' active':''}`} onClick={()=>setTab('iphone')}>📱 아이폰</button>
+            <button className={`tab${tab==='rtsp'?' active':''}`} onClick={()=>setTab('rtsp')}>📷 RTSP IP카메라</button>
+          </div>
+          {err && <div className="err" style={{marginBottom:'1rem'}}>{err}</div>}
+
+          {/* WEBCAM TAB */}
+          {tab === 'webcam' && (
+            <>
+              <div className="video-wrap">
+                <video ref={videoRef} autoPlay muted playsInline />
+                {!stream && <div className="video-overlay">카메라 권한 대기 중…</div>}
+              </div>
+              {devices.length > 1 && (
+                <div className="field">
+                  <label>카메라 선택</label>
+                  <select value={deviceId} onChange={e=>setDeviceId(e.target.value)}>
+                    {devices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label||`카메라 ${d.deviceId.slice(0,8)}`}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="field">
+                <label>카메라 이름</label>
+                <input value={camName} onChange={e=>setCamName(e.target.value)} placeholder="예: 내 맥북 카메라" />
+              </div>
+            </>
+          )}
+
+          {/* IPHONE TAB */}
+          {tab === 'iphone' && (
+            <>
+              <div className="iphone-guide" style={{marginBottom:'1rem'}}>
+                <strong>아이폰 카메라를 RTSP 스트림으로 연결</strong><br/><br/>
+                1. 아이폰과 이 기기를 <strong>같은 WiFi</strong>에 연결<br/>
+                2. 아이폰에서 아래 앱 중 하나를 설치하고 실행:<br/>
+                &nbsp;&nbsp;• <strong>iVCam</strong> — RTSP URL: <code>rtsp://[iPhone-IP]:8554/live</code><br/>
+                &nbsp;&nbsp;• <strong>Camo</strong> — RTSP URL: <code>rtsp://[iPhone-IP]:8080/live</code><br/>
+                &nbsp;&nbsp;• <strong>EpocCam</strong> — RTSP URL: <code>rtsp://[iPhone-IP]:8554/live</code><br/>
+                3. 앱을 실행한 후 아이폰 IP를 확인 (설정 → WiFi → 연결된 네트워크 → IP 주소)<br/>
+                4. 아래에 RTSP URL을 입력하세요
+              </div>
+              <div className="field"><label>카메라 이름</label>
+                <input value={iphoneName} onChange={e=>setIphoneName(e.target.value)} placeholder="예: iPhone 카메라" />
+              </div>
+              <div className="field"><label>RTSP URL</label>
+                <input value={iphoneUrl} onChange={e=>setIphoneUrl(e.target.value)} placeholder="rtsp://192.168.1.x:8554/live" />
+              </div>
+            </>
+          )}
+
+          {/* RTSP TAB */}
+          {tab === 'rtsp' && (
+            <>
+              <div className="field"><label>카메라 이름</label>
+                <input value={rtspName} onChange={e=>setRtspName(e.target.value)} placeholder="예: 현관 IP카메라" />
+              </div>
+              <div className="field"><label>RTSP URL</label>
+                <input value={rtspUrl} onChange={e=>setRtspUrl(e.target.value)} placeholder="rtsp://admin:pass@192.168.1.x/stream" />
+              </div>
+              <div className="field"><label>위치 (선택)</label>
+                <input value={rtspLoc} onChange={e=>setRtspLoc(e.target.value)} placeholder="예: 현관, 주차장" />
+              </div>
+            </>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-modal btn-cancel" onClick={()=>{stopStream();onClose();}}>취소</button>
+          <button className="btn-modal btn-confirm" disabled={saving||!canSave()} onClick={save}>
+            {saving?'등록 중…':'카메라 추가'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Webcam Analyzer (frame loop) ────────────────────── */
+function WebcamAnalyzer({ camera, deviceId, token, onAlert }) {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const loopRef = useRef(null);
+  const [status, setStatus] = useState('connecting');
+  const [lastResult, setLastResult] = useState(null);
+
+  useEffect(() => {
+    let stream;
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
+        if (videoRef.current) videoRef.current.srcObject = stream;
+        setStatus('live');
+        loopRef.current = setInterval(async () => {
+          if (!videoRef.current || !canvasRef.current) return;
+          const v = videoRef.current;
+          const c = canvasRef.current;
+          c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
+          c.getContext('2d').drawImage(v, 0, 0);
+          c.toBlob(async (blob) => {
+            if (!blob) return;
+            const r = await postFrame(camera.id, blob, token);
+            if (r) {
+              setLastResult(r);
+              if (r.should_alert) onAlert({ ...r, camera_name: camera.name, detected_at: new Date().toISOString() });
+            }
+          }, 'image/jpeg', 0.8);
+        }, 3000);
+      } catch { setStatus('error'); }
+    })();
+    return () => {
+      clearInterval(loopRef.current);
+      stream?.getTracks().forEach(t => t.stop());
+    };
+  }, [camera.id, deviceId, token]);
+
+  const alerting = lastResult?.should_alert;
+  return (
+    <div className="cam-item" style={{flexDirection:'column',alignItems:'stretch',gap:'.5rem'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div>
+          <div className="cam-name">{camera.name}</div>
+          <div className="cam-sub">브라우저 웹캠 · 3초 간격 AI 분석</div>
+        </div>
+        <span className={`badge ${status==='live'?(alerting?'badge-alert':'badge-green'):'badge-gray'}`}
+              style={alerting?{background:'#7f1d1d',color:'#fca5a5'}:{}}>
+          {status==='live'?(alerting?'⚠️ 감지':'🟢 정상'):'연결 중'}
+        </span>
+      </div>
+      <div style={{position:'relative',borderRadius:'8px',overflow:'hidden',background:'#000',aspectRatio:'16/9'}}>
+        <video ref={videoRef} autoPlay muted playsInline style={{width:'100%',height:'100%',objectFit:'cover'}} />
+        <canvas ref={canvasRef} style={{display:'none'}} />
+        {alerting && (
+          <div style={{position:'absolute',bottom:'.5rem',left:'.5rem',background:'rgba(127,29,29,.9)',borderRadius:'6px',padding:'.25rem .6rem',fontSize:'.75rem',color:'#fca5a5',fontWeight:700}}>
+            ⚠️ {lastResult.event_type} ({Math.round((lastResult.confidence||0)*100)}%)
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Dashboard ──────────────────────────────────── */
+function Dashboard({ token, onLogout }) {
   const [cameras, setCameras] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newCam, setNewCam] = useState({ name: '', rtsp_url: '', location: '' });
+  const [showModal, setShowModal] = useState(false);
+  const [webcams, setWebcams] = useState([]); // {camera, deviceId}
   const chartRef = useRef(null);
-  const chartInstance = useRef(null);
+  const chartInst = useRef(null);
 
   const load = async () => {
     try {
       const [cams, alts] = await Promise.all([
-        apiCall('/cameras', {}, token),
-        apiCall('/alerts', {}, token),
+        apiFetch('/cameras', {}, token),
+        apiFetch('/alerts', {}, token),
       ]);
       setCameras(cams);
       setAlerts(alts);
@@ -151,174 +393,133 @@ function Dashboard({ token, apiKey, onLogout }) {
     setLoading(false);
   };
 
-  useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, []);
+  useEffect(() => { load(); const t = setInterval(load, 30000); return ()=>clearInterval(t); }, []);
 
   useEffect(() => {
     if (!chartRef.current) return;
-    if (chartInstance.current) chartInstance.current.destroy();
-    // Build last-7-days alert counts
-    const days = [];
-    const counts = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
+    chartInst.current?.destroy();
+    const days = [], counts = [];
+    for (let i=6;i>=0;i--) {
+      const d = new Date(); d.setDate(d.getDate()-i);
       days.push(`${d.getMonth()+1}/${d.getDate()}`);
-      counts.push(alerts.filter(a => {
-        const ad = new Date(a.detected_at || a.created_at || 0);
-        return ad.toDateString() === d.toDateString();
+      counts.push(alerts.filter(a=>{
+        const ad=new Date(a.detected_at||0); return ad.toDateString()===d.toDateString();
       }).length);
     }
-    chartInstance.current = new Chart(chartRef.current, {
-      type: 'bar',
-      data: {
-        labels: days,
-        datasets: [{ label: '이상 감지', data: counts, backgroundColor: '#0ea5e9', borderRadius: 4 }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
-          y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', stepSize: 1 } }
-        }
-      }
+    chartInst.current = new Chart(chartRef.current, {
+      type:'bar',
+      data:{ labels:days, datasets:[{label:'이상 감지',data:counts,backgroundColor:'#0ea5e9',borderRadius:4}] },
+      options:{ responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{x:{grid:{color:'#1e293b'},ticks:{color:'#64748b'}},y:{grid:{color:'#1e293b'},ticks:{color:'#64748b',stepSize:1}}} }
     });
   }, [alerts]);
 
-  const addCamera = async () => {
-    if (!newCam.name || !newCam.rtsp_url) return;
-    try {
-      await apiCall('/cameras', { method: 'POST', body: JSON.stringify(newCam) }, token);
-      setNewCam({ name: '', rtsp_url: '', location: '' });
-      load();
-    } catch {}
+  const handleAdded = (cam, devId) => {
+    load();
+    setShowModal(false);
+    if (devId) setWebcams(w => [...w, { camera: cam, deviceId: devId }]);
   };
 
-  const activeCams = cameras.filter(c => c.enabled !== false);
-  const todayAlerts = alerts.filter(a => {
-    const d = new Date(a.detected_at || a.created_at || 0);
-    return d.toDateString() === new Date().toDateString();
-  });
+  const handleWebcamAlert = (alertData) => {
+    setAlerts(a => [alertData, ...a].slice(0, 100));
+  };
+
+  const todayAlerts = alerts.filter(a => new Date(a.detected_at||0).toDateString()===new Date().toDateString());
+  const regularCameras = cameras.filter(c => !webcams.some(w=>w.camera.id===c.id));
 
   return (
-    <div className="app">
+    <>
       <div className="header">
         <div className="header-logo">Watch<span>Log</span></div>
         <div className="header-right">
-          <span style={{fontSize:'0.8rem', color:'#94a3b8'}}>
-            <span className="status-dot"></span>운영 중
-          </span>
+          <span style={{fontSize:'.8rem',color:'#94a3b8'}}><span className="dot"/>운영 중</span>
+          <button className="btn-primary-sm" onClick={()=>setShowModal(true)}>+ 카메라 추가</button>
+          <a href="/docs" target="_blank" style={{textDecoration:'none'}}><button className="btn-sm">API 문서</button></a>
           <button className="btn-sm" onClick={onLogout}>로그아웃</button>
-          <a href="/docs" target="_blank" style={{textDecoration:'none'}}>
-            <button className="btn-sm">API 문서</button>
-          </a>
         </div>
       </div>
       <div className="main">
-        {loading ? <div className="loading">불러오는 중...</div> : (
-          <>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-label">등록 카메라</div>
-                <div className="stat-value">{cameras.length}</div>
+        {loading ? <div style={{textAlign:'center',color:'#475569',padding:'3rem'}}>불러오는 중…</div> : (<>
+          <div className="stats-grid">
+            <div className="stat-card"><div className="stat-label">등록 카메라</div><div className="stat-val blue">{cameras.length}</div></div>
+            <div className="stat-card"><div className="stat-label">웹캠 활성</div><div className="stat-val green">{webcams.length}</div></div>
+            <div className="stat-card"><div className="stat-label">오늘 알림</div><div className="stat-val yellow">{todayAlerts.length}</div></div>
+            <div className="stat-card"><div className="stat-label">전체 알림</div><div className="stat-val">{alerts.length}</div></div>
+          </div>
+
+          {/* Active webcams with live preview */}
+          {webcams.length > 0 && (
+            <div className="card" style={{marginBottom:'1.5rem'}}>
+              <div className="card-header">
+                <div className="section-title">🎥 라이브 웹캠 분석</div>
               </div>
-              <div className="stat-card">
-                <div className="stat-label">활성 카메라</div>
-                <div className={`stat-value ${activeCams.length > 0 ? 'green' : 'gray'}`}>{activeCams.length}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">오늘 알림</div>
-                <div className={`stat-value ${todayAlerts.length > 0 ? 'yellow' : 'green'}`}>{todayAlerts.length}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">전체 알림</div>
-                <div className="stat-value">{alerts.length}</div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'1rem'}}>
+                {webcams.map(w => (
+                  <WebcamAnalyzer key={w.camera.id} camera={w.camera} deviceId={w.deviceId} token={token} onAlert={handleWebcamAlert} />
+                ))}
               </div>
             </div>
+          )}
 
-            <div className="grid-2">
-              <div className="card">
+          <div className="grid2">
+            <div className="card">
+              <div className="card-header">
                 <div className="section-title">카메라 현황</div>
-                {cameras.length === 0 ? (
-                  <div className="empty-state">등록된 카메라가 없습니다</div>
-                ) : (
-                  <div className="camera-list">
-                    {cameras.map(c => (
-                      <div key={c.id} className="camera-item">
-                        <div>
-                          <div className="camera-name">{c.name}</div>
-                          {c.location && <div className="camera-url">{c.location}</div>}
-                        </div>
-                        <span className={`badge ${c.enabled !== false ? 'badge-green' : 'badge-gray'}`}>
-                          {c.enabled !== false ? '활성' : '비활성'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="add-camera-form">
-                  <div className="input-row">
-                    <input className="input-sm" placeholder="카메라 이름" value={newCam.name} onChange={e=>setNewCam({...newCam,name:e.target.value})} />
-                    <input className="input-sm" placeholder="위치 (선택)" value={newCam.location} onChange={e=>setNewCam({...newCam,location:e.target.value})} />
-                  </div>
-                  <div className="input-row">
-                    <input className="input-sm" placeholder="rtsp://..." value={newCam.rtsp_url} onChange={e=>setNewCam({...newCam,rtsp_url:e.target.value})} />
-                    <button className="btn-add" onClick={addCamera}>추가</button>
-                  </div>
+              </div>
+              {regularCameras.length === 0 ? (
+                <div className="empty">
+                  등록된 카메라가 없습니다<br/>
+                  <span style={{fontSize:'.8rem',marginTop:'.5rem',display:'block'}}>상단 "+ 카메라 추가" 버튼을 눌러 시작하세요</span>
                 </div>
-              </div>
-
-              <div className="card">
-                <div className="section-title">최근 이상 감지</div>
-                {alerts.length === 0 ? (
-                  <div className="empty-state">감지된 이상이 없습니다</div>
-                ) : (
-                  <div className="alert-list">
-                    {alerts.slice(0, 8).map(a => (
-                      <div key={a.id} className="alert-item">
-                        <div className="alert-icon">⚠️</div>
-                        <div>
-                          <div className="alert-desc">{a.camera_name} — {a.event_type}</div>
-                          <div className="alert-meta">
-                            신뢰도 {Math.round((a.confidence||0)*100)}% · {a.detected_at ? new Date(a.detected_at).toLocaleString('ko-KR') : ''}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+              ) : regularCameras.map(c => (
+                <div key={c.id} className="cam-item">
+                  <div>
+                    <div className="cam-name">{c.name}</div>
+                    {c.location && <div className="cam-sub">{c.location}</div>}
                   </div>
-                )}
-              </div>
+                  <span className={`badge ${c.enabled!==false?'badge-green':'badge-gray'}`}>
+                    {c.enabled!==false?'활성':'비활성'}
+                  </span>
+                </div>
+              ))}
             </div>
 
             <div className="card">
-              <div className="section-title">주간 이상 감지 추이</div>
-              <div style={{height:'200px', position:'relative'}}>
-                <canvas ref={chartRef}></canvas>
-              </div>
+              <div className="card-header"><div className="section-title">최근 이상 감지</div></div>
+              {alerts.length === 0 ? (
+                <div className="empty">감지된 이상이 없습니다</div>
+              ) : alerts.slice(0,8).map((a,i) => (
+                <div key={a.id||i} className="alert-item">
+                  <div className="alert-icon">⚠️</div>
+                  <div>
+                    <div className="alert-desc">{a.camera_name} — {a.event_type||'이상 감지'}</div>
+                    <div className="alert-meta">
+                      신뢰도 {Math.round((a.confidence||0)*100)}% · {a.detected_at?new Date(a.detected_at).toLocaleString('ko-KR'):'방금'}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </>
-        )}
+          </div>
+
+          <div className="card">
+            <div className="card-header"><div className="section-title">주간 이상 감지 추이</div></div>
+            <div style={{height:'180px',position:'relative'}}><canvas ref={chartRef}/></div>
+          </div>
+        </>)}
       </div>
-    </div>
+      {showModal && <AddCameraModal token={token} onClose={()=>setShowModal(false)} onAdded={handleAdded} />}
+    </>
   );
 }
 
+/* ── App root ────────────────────────────────────────── */
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('wl_token'));
-  const [apiKey, setApiKey] = useState(localStorage.getItem('wl_key'));
-
-  const handleLogin = (t, k) => {
-    setToken(t); setApiKey(k);
-    localStorage.setItem('wl_token', t);
-    localStorage.setItem('wl_key', k);
-  };
-  const handleLogout = () => {
-    setToken(null); setApiKey(null);
-    localStorage.removeItem('wl_token');
-    localStorage.removeItem('wl_key');
-  };
-
-  if (!token) return <LoginPage onLogin={handleLogin} />;
-  return <Dashboard token={token} apiKey={apiKey} onLogout={handleLogout} />;
+  const [token, setToken] = useState(() => localStorage.getItem('wl_token'));
+  const login = t => { setToken(t); localStorage.setItem('wl_token', t); };
+  const logout = () => { setToken(null); localStorage.removeItem('wl_token'); };
+  return token ? <Dashboard token={token} onLogout={logout} /> : <LoginPage onLogin={login} />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
