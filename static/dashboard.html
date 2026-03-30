@@ -256,7 +256,7 @@ function AddCameraModal({ token, onClose, onAdded }) {
       }
     } catch (e) {
       if (e.name === 'NotAllowedError') {
-        setErr('카메라 권한이 거부되었습니다. 주소창 왼쪽 🔒 아이콘 → 카메라 허용 후 새로고침해주세요.');
+        setErr('PERMISSION_DENIED');
       } else if (e.name === 'NotFoundError') {
         setErr('카메라를 찾을 수 없습니다. 카메라가 연결되어 있는지 확인해주세요.');
       } else {
@@ -310,7 +310,27 @@ function AddCameraModal({ token, onClose, onAdded }) {
               <div className="video-wrap">
                 <video ref={videoRef} autoPlay muted playsInline />
                 {!stream && !err && <div className="video-overlay">📷 카메라 권한을 요청 중입니다...<br/>브라우저 상단 팝업에서 <strong>허용</strong>을 클릭해주세요</div>}
-          {err && <div className="video-overlay" style={{color:'#f87171',fontSize:'.85rem',padding:'1rem',textAlign:'center'}}>{err}</div>}
+          {err && (
+            err === 'PERMISSION_DENIED' ? (
+              <div className="video-overlay" style={{padding:'1.2rem',textAlign:'center',lineHeight:'1.7'}}>
+                <div style={{fontSize:'2rem',marginBottom:'.5rem'}}>🔒</div>
+                <div style={{color:'#f87171',fontWeight:'bold',marginBottom:'.8rem'}}>카메라 권한이 차단되어 있습니다</div>
+                <div style={{color:'#94a3b8',fontSize:'.8rem',textAlign:'left',display:'inline-block'}}>
+                  <strong>Chrome 권한 재설정 방법:</strong><br/>
+                  ① 주소창 왼쪽 🔒 아이콘 클릭<br/>
+                  ② 카메라 → <strong>허용</strong>으로 변경<br/>
+                  ③ 아래 버튼 클릭
+                </div>
+                <br/><br/>
+                <button onClick={() => { setErr(''); startStream(deviceId); }}
+                  style={{background:'#3b82f6',color:'#fff',border:'none',borderRadius:'6px',padding:'.5rem 1.2rem',cursor:'pointer',fontSize:'.85rem'}}>
+                  🔄 카메라 다시 시도
+                </button>
+              </div>
+            ) : (
+              <div className="video-overlay" style={{color:'#f87171',fontSize:'.85rem',padding:'1rem',textAlign:'center'}}>{err}</div>
+            )
+          )}
               </div>
               {devices.length > 1 && (
                 <div className="field">
