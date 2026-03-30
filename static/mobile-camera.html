@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>WatchLog — 모바일 카메라</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{width:100%;height:100%;background:#000;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+    #app{position:relative;width:100%;height:100%;display:flex;flex-direction:column}
+    video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+    /* Top bar */
+    .top-bar{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top,1rem) 1rem .75rem;background:linear-gradient(to bottom,rgba(0,0,0,.7) 0%,transparent 100%)}
+    .logo{font-size:1.1rem;font-weight:800;color:#38bdf8}
+    .logo span{color:#e2e8f0}
+    .status-pill{display:flex;align-items:center;gap:.4rem;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:.3rem .75rem;font-size:.75rem}
+    .dot-live{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite}
+    .dot-idle{width:7px;height:7px;border-radius:50%;background:#64748b}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    /* Analysis overlay */
+    .analysis-overlay{position:absolute;top:4.5rem;left:1rem;right:1rem;z-index:10;display:flex;flex-direction:column;gap:.5rem;pointer-events:none}
+    .result-card{background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:.65rem 1rem;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+    .result-card.alert-card{border-color:rgba(239,68,68,.6);background:rgba(127,29,29,.8)}
+    .result-label{font-size:.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem}
+    .result-value{font-size:.9rem;font-weight:600}
+    .result-value.green{color:#4ade80}
+    .result-value.red{color:#f87171;animation:pulse .5s infinite}
+    .confidence-bar{margin-top:.4rem;height:4px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}
+    .confidence-fill{height:100%;border-radius:2px;transition:width .4s ease}
+    .confidence-fill.high{background:#4ade80}
+    .confidence-fill.medium{background:#fbbf24}
+    .confidence-fill.low{background:#f87171}
+    /* Bottom controls */
+    .bottom-bar{position:absolute;bottom:0;left:0;right:0;z-index:10;padding:.75rem 1rem env(safe-area-inset-bottom,1rem);background:linear-gradient(to top,rgba(0,0,0,.8) 0%,transparent 100%)}
+    .controls{display:flex;align-items:center;justify-content:space-around;padding:.5rem 0}
+    .ctrl-btn{width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3rem;transition:transform .1s,opacity .2s}
+    .ctrl-btn:active{transform:scale(.9)}
+    .btn-flip{background:rgba(255,255,255,.15);color:#e2e8f0;border:1px solid rgba(255,255,255,.25)}
+    .btn-flip:hover{background:rgba(255,255,255,.25)}
+    .btn-main{width:72px;height:72px;border:3px solid #fff}
+    .btn-start{background:#0ea5e9}
+    .btn-stop{background:#ef4444}
+    .btn-info{background:rgba(255,255,255,.15);color:#e2e8f0;border:1px solid rgba(255,255,255,.25);font-size:.7rem;font-weight:600;flex-direction:column;gap:.15rem}
+    .interval-label{font-size:.55rem;color:#94a3b8}
+    /* Error / loading states */
+    .center-msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;background:rgba(0,0,0,.9);gap:1rem;padding:2rem;text-align:center}
+    .center-msg h2{font-size:1.1rem;font-weight:700;color:#e2e8f0}
+    .center-msg p{font-size:.875rem;color:#94a3b8;line-height:1.5}
+    .center-msg button{background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:.75rem 1.5rem;font-size:.9rem;font-weight:600;cursor:pointer;margin-top:.5rem}
+    .hidden{display:none!important}
+    /* Interval selector */
+    .interval-row{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:.4rem}
+    .interval-row label{font-size:.72rem;color:#94a3b8}
+    .interval-select{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#e2e8f0;font-size:.72rem;padding:.2rem .4rem;outline:none}
+  </style>
+</head>
+<body>
+<div id="app">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas" style="display:none"></canvas>
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <div class="logo">Watch<span>Log</span></div>
+    <div class="status-pill" id="statusPill">
+      <div class="dot-idle" id="statusDot"></div>
+      <span id="statusText">대기 중</span>
+    </div>
+  </div>
+
+  <!-- Analysis result overlay -->
+  <div class="analysis-overlay" id="analysisOverlay" style="display:none">
+    <div class="result-card" id="resultCard">
+      <div class="result-label">AI 분석 결과</div>
+      <div class="result-value" id="resultValue">—</div>
+      <div class="confidence-bar"><div class="confidence-fill" id="confFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Bottom controls -->
+  <div class="bottom-bar">
+    <div class="controls">
+      <button class="ctrl-btn btn-flip" id="btnFlip" title="카메라 전환">🔄</button>
+      <button class="ctrl-btn btn-main btn-start" id="btnMain" title="분석 시작">▶</button>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.25rem">
+        <button class="ctrl-btn btn-info" id="btnInfo">
+          <span id="frameCount">0</span>
+          <span class="interval-label">프레임</span>
+        </button>
+      </div>
+    </div>
+    <div class="interval-row">
+      <label>분석 간격</label>
+      <select class="interval-select" id="intervalSelect">
+        <option value="2000">2초</option>
+        <option value="3000" selected>3초</option>
+        <option value="5000">5초</option>
+        <option value="10000">10초</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Permission error -->
+  <div class="center-msg hidden" id="permError">
+    <h2>📷 카메라 권한 필요</h2>
+    <p>WatchLog가 카메라에 접근하려면 권한이 필요합니다.<br>사파리 설정에서 카메라 권한을 허용해 주세요.</p>
+    <button onclick="initCamera()">다시 시도</button>
+  </div>
+
+  <!-- Init error -->
+  <div class="center-msg hidden" id="genericError">
+    <h2>⚠️ 오류 발생</h2>
+    <p id="genericErrorMsg">카메라를 시작할 수 없습니다.</p>
+    <button onclick="location.reload()">새로 고침</button>
+  </div>
+</div>
+
+<script>
+const BASE = window.location.origin;
+const CAMERA_KEY = 'wl_mobile_cam_id';
+
+let stream = null;
+let facingMode = 'environment'; // rear by default
+let analysisLoop = null;
+let cameraId = null;
+let frameCount = 0;
+let isRunning = false;
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const btnFlip = document.getElementById('btnFlip');
+const btnMain = document.getElementById('btnMain');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const analysisOverlay = document.getElementById('analysisOverlay');
+const resultCard = document.getElementById('resultCard');
+const resultValue = document.getElementById('resultValue');
+const confFill = document.getElementById('confFill');
+const frameCountEl = document.getElementById('frameCount');
+const intervalSelect = document.getElementById('intervalSelect');
+
+/* ── Camera init ─────────────────────────────── */
+async function initCamera() {
+  document.getElementById('permError').classList.add('hidden');
+  document.getElementById('genericError').classList.add('hidden');
+
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+    video.srcObject = stream;
+    setStatus('idle', '카메라 준비됨');
+  } catch (e) {
+    if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+      document.getElementById('permError').classList.remove('hidden');
+    } else {
+      document.getElementById('genericErrorMsg').textContent = e.message || String(e);
+      document.getElementById('genericError').classList.remove('hidden');
+    }
+  }
+}
+
+/* ── Camera ID registration ──────────────────── */
+async function ensureCameraId() {
+  const stored = localStorage.getItem(CAMERA_KEY);
+  if (stored) {
+    // Verify it still exists
+    try {
+      const r = await fetch(`${BASE}/cameras/${stored}`);
+      if (r.ok) { cameraId = parseInt(stored, 10); return; }
+    } catch {}
+  }
+  // Create new mobile camera
+  const r = await fetch(`${BASE}/cameras`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: '📱 모바일 카메라', rtsp_url: 'browser://mobile', location: 'iPhone' }),
+  });
+  if (!r.ok) throw new Error('카메라 등록 실패');
+  const cam = await r.json();
+  cameraId = cam.id;
+  localStorage.setItem(CAMERA_KEY, String(cam.id));
+}
+
+/* ── Frame capture & analysis ────────────────── */
+async function captureAndAnalyze() {
+  if (!video.videoWidth || !stream) return;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  canvas.toBlob(async (blob) => {
+    if (!blob) return;
+    const fd = new FormData();
+    fd.append('camera_id', String(cameraId));
+    fd.append('frame', blob, 'frame.jpg');
+    try {
+      const r = await fetch(`${BASE}/cameras/frame`, { method: 'POST', body: fd });
+      if (!r.ok) return;
+      const data = await r.json();
+      showResult(data);
+      frameCount++;
+      frameCountEl.textContent = frameCount;
+    } catch {}
+  }, 'image/jpeg', 0.8);
+}
+
+function showResult(data) {
+  analysisOverlay.style.display = '';
+  const alerting = data.should_alert;
+  const conf = Math.round((data.confidence || 0) * 100);
+  const label = data.event_type || (alerting ? '이상 감지' : '정상');
+
+  resultCard.className = 'result-card' + (alerting ? ' alert-card' : '');
+  resultValue.className = 'result-value ' + (alerting ? 'red' : 'green');
+  resultValue.textContent = (alerting ? '⚠️ ' : '✅ ') + label + ' (' + conf + '%)';
+
+  confFill.style.width = conf + '%';
+  confFill.className = 'confidence-fill ' + (conf >= 70 ? 'high' : conf >= 40 ? 'medium' : 'low');
+  if (alerting) {
+    setStatus('alert', '이상 감지!');
+  } else {
+    setStatus('live', '분석 중');
+  }
+}
+
+/* ── Controls ────────────────────────────────── */
+async function startAnalysis() {
+  if (isRunning) return;
+  try {
+    setStatus('idle', '초기화 중…');
+    await ensureCameraId();
+  } catch (e) {
+    setStatus('error', '오류');
+    return;
+  }
+  isRunning = true;
+  btnMain.textContent = '■';
+  btnMain.className = 'ctrl-btn btn-main btn-stop';
+  setStatus('live', '분석 중');
+  const interval = parseInt(intervalSelect.value, 10);
+  await captureAndAnalyze();
+  analysisLoop = setInterval(captureAndAnalyze, interval);
+}
+
+function stopAnalysis() {
+  clearInterval(analysisLoop);
+  analysisLoop = null;
+  isRunning = false;
+  btnMain.textContent = '▶';
+  btnMain.className = 'ctrl-btn btn-main btn-start';
+  setStatus('idle', '대기 중');
+  analysisOverlay.style.display = 'none';
+}
+
+function setStatus(state, text) {
+  statusText.textContent = text;
+  statusDot.className = state === 'live' || state === 'alert' ? 'dot-live' : 'dot-idle';
+  if (state === 'alert') statusDot.style.background = '#ef4444';
+  else if (state === 'live') statusDot.style.background = '#22c55e';
+  else statusDot.style.background = '#64748b';
+}
+
+btnMain.addEventListener('click', () => {
+  if (isRunning) stopAnalysis(); else startAnalysis();
+});
+
+btnFlip.addEventListener('click', async () => {
+  facingMode = facingMode === 'environment' ? 'user' : 'environment';
+  const wasRunning = isRunning;
+  if (wasRunning) stopAnalysis();
+  await initCamera();
+  if (wasRunning) startAnalysis();
+});
+
+intervalSelect.addEventListener('change', () => {
+  if (isRunning) {
+    clearInterval(analysisLoop);
+    const interval = parseInt(intervalSelect.value, 10);
+    analysisLoop = setInterval(captureAndAnalyze, interval);
+  }
+});
+
+// Prevent sleep on iOS by playing a silent audio workaround via document visibility
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && isRunning && !analysisLoop) {
+    const interval = parseInt(intervalSelect.value, 10);
+    analysisLoop = setInterval(captureAndAnalyze, interval);
+  }
+});
+
+initCamera();
+</script>
+</body>
+</html>

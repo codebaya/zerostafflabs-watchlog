@@ -48,6 +48,11 @@ async def root():
     return FileResponse(str(_STATIC / "dashboard.html"))
 
 
+@app.get("/mobile-camera", include_in_schema=False)
+async def mobile_camera():
+    return FileResponse(str(_STATIC / "mobile-camera.html"))
+
+
 @app.on_event("startup")
 async def startup():
     logger.info("WatchLog starting up…")
