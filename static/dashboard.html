@@ -395,22 +395,31 @@ function WebcamAnalyzer({ camera, deviceId, token, onAlert }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const loopRef = useRef(null);
+  const recognitionRef = useRef(null);
   const [status, setStatus] = useState('connecting');
-  const [feed, setFeed] = useState([]); // AI 설명 피드
+  const [feed, setFeed] = useState([]);
   const feedRef = useRef(null);
 
-  // 피드 자동 스크롤
+  const addFeed = (type, text, isAlert = false) => {
+    const now = new Date();
+    const t = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+    setFeed(prev => [...prev.slice(-80), { id: Date.now() + Math.random(), time: t, type, text, alert: isAlert }]);
+  };
+
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
   }, [feed]);
 
+  // ── 카메라 + AI 분석 루프 ──────────────────────────────
   useEffect(() => {
     let stream;
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
-        if (videoRef.current) videoRef.current.srcObject = stream;
+        stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } }, audio: false });
+        if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
         setStatus('live');
+        addFeed('system', '카메라 연결됨. AI 분석 시작합니다...');
+
         loopRef.current = setInterval(async () => {
           if (!canvasRef.current || !videoRef.current) return;
           const ctx = canvasRef.current.getContext('2d');
@@ -419,58 +428,124 @@ function WebcamAnalyzer({ camera, deviceId, token, onAlert }) {
           ctx.drawImage(videoRef.current, 0, 0);
           canvasRef.current.toBlob(async blob => {
             if (!blob) return;
-            const r = await postFrame(camera.id, blob, token);
-            const now = new Date();
-            const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-            const desc = r?.description || (r?.should_alert ? r?.alert_reason : '정상 상황');
-            const isAlert = r?.should_alert;
-            setFeed(prev => [...prev.slice(-50), { time: timeStr, text: desc, alert: isAlert, type: r?.event_type }]);
-            if (isAlert) onAlert({ ...r, camera_name: camera.name, detected_at: now.toISOString() });
-          }, 'image/jpeg', 0.8);
+            try {
+              const r = await postFrame(camera.id, blob, token);
+              if (!r) return;
+              const desc = r.description || r.alert_reason || (r.should_alert ? '이상 감지' : '정상');
+              addFeed('vision', desc, r.should_alert);
+              if (r.should_alert) onAlert({ ...r, camera_name: camera.name, detected_at: new Date().toISOString() });
+            } catch(e) { /* 무시 */ }
+          }, 'image/jpeg', 0.75);
         }, 3000);
-      } catch(e) { setStatus('error'); }
+      } catch(e) { setStatus('error'); addFeed('system', `카메라 오류: ${e.message}`, true); }
     })();
-    return () => { stream?.getTracks().forEach(t=>t.stop()); clearInterval(loopRef.current); };
+    return () => { stream?.getTracks().forEach(t => t.stop()); clearInterval(loopRef.current); };
   }, [camera.id, deviceId, token]);
+
+  // ── 음성 인식 (Web Speech API) ──────────────────────
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      addFeed('audio', '이 브라우저는 음성인식을 지원하지 않습니다.');
+      return;
+    }
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'ko-KR';
+    rec.onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const transcript = e.results[i][0].transcript.trim();
+        if (e.results[i].isFinal && transcript) {
+          addFeed('audio', `🔊 "${transcript}"`);
+        }
+      }
+    };
+    rec.onerror = (e) => {
+      if (e.error !== 'no-speech') addFeed('audio', `음성인식 오류: ${e.error}`);
+    };
+    rec.onend = () => { try { rec.start(); } catch(e) {} }; // 자동 재시작
+    try { rec.start(); recognitionRef.current = rec; }
+    catch(e) { addFeed('audio', '마이크 권한이 필요합니다.'); }
+    return () => { try { rec.stop(); } catch(e) {} };
+  }, []);
 
   return (
     <div style={{background:'#0f172a',borderRadius:'12px',overflow:'hidden',border:'1px solid #1e293b'}}>
-      {/* 상단: 카메라 이름 + 상태 */}
-      <div style={{padding:'.6rem 1rem',display:'flex',alignItems:'center',gap:'.5rem',background:'#1e293b'}}>
+      {/* 헤더 */}
+      <div style={{padding:'.6rem 1rem',display:'flex',alignItems:'center',gap:'.6rem',background:'#1e293b'}}>
         <span style={{fontWeight:600,color:'#e2e8f0'}}>{camera.name}</span>
-        <span style={{fontSize:'.75rem',color:'#64748b'}}>브라우저 웹캠 · 3초 간격 AI 분석</span>
-        <span style={{marginLeft:'auto',fontSize:'.75rem',padding:'.2rem .6rem',borderRadius:'999px',
-          background: status==='live' ? '#166534' : '#7f1d1d', color: status==='live' ? '#4ade80' : '#f87171'}}>
-          {status === 'live' ? '● 정상' : status === 'connecting' ? '연결 중...' : '오류'}
+        <span style={{fontSize:'.72rem',color:'#64748b'}}>3초 AI 분석 · 실시간 음성인식</span>
+        <span style={{marginLeft:'auto',fontSize:'.72rem',padding:'.2rem .6rem',borderRadius:'999px',
+          background: status==='live' ? '#14532d' : '#450a0a',
+          color: status==='live' ? '#4ade80' : '#f87171'}}>
+          {status === 'live' ? '● LIVE' : status === 'connecting' ? '연결 중...' : '오류'}
         </span>
       </div>
 
-      {/* 메인: 비디오 + AI 피드 나란히 */}
-      <div style={{display:'flex',gap:0,height:'420px'}}>
-        {/* 비디오 */}
-        <div style={{flex:'0 0 65%',position:'relative',background:'#000'}}>
-          <video ref={videoRef} autoPlay muted playsInline style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+      {/* 메인 영역 */}
+      <div style={{display:'flex',height:'440px'}}>
+        {/* 비디오 (65%) */}
+        <div style={{flex:'0 0 58%',position:'relative',background:'#000'}}>
+          <video ref={videoRef} autoPlay muted playsInline
+            style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
           <canvas ref={canvasRef} style={{display:'none'}}/>
+          {/* 비디오 위 오버레이 레이블 */}
+          <div style={{position:'absolute',bottom:'8px',left:'8px',
+            background:'rgba(0,0,0,.6)',borderRadius:'4px',padding:'.2rem .5rem',
+            fontSize:'.7rem',color:'#94a3b8'}}>
+            📹 {camera.name}
+          </div>
         </div>
 
-        {/* AI 설명 피드 (유튜브 라이브채팅 스타일) */}
-        <div style={{flex:'1',display:'flex',flexDirection:'column',background:'#0f172a',borderLeft:'1px solid #1e293b'}}>
-          <div style={{padding:'.5rem .8rem',borderBottom:'1px solid #1e293b',fontSize:'.75rem',color:'#64748b',fontWeight:600}}>
-            🤖 AI 실시간 분석
+        {/* AI 분석 피드 (35%) */}
+        <div style={{flex:'1',display:'flex',flexDirection:'column',borderLeft:'1px solid #1e293b'}}>
+          {/* 탭 헤더 */}
+          <div style={{padding:'.4rem .7rem',borderBottom:'1px solid #1e293b',
+            display:'flex',gap:'.5rem',background:'#0f172a'}}>
+            <span style={{fontSize:'.7rem',color:'#60a5fa',fontWeight:600}}>📡 실시간 분석 피드</span>
+            <span style={{marginLeft:'auto',fontSize:'.65rem',color:'#334155'}}>{feed.length}개</span>
           </div>
-          <div ref={feedRef} style={{flex:1,overflowY:'auto',padding:'.5rem',display:'flex',flexDirection:'column',gap:'.4rem'}}>
+
+          {/* 피드 */}
+          <div ref={feedRef} style={{flex:1,overflowY:'auto',padding:'.4rem .5rem',
+            display:'flex',flexDirection:'column',gap:'.3rem',
+            scrollbarWidth:'thin',scrollbarColor:'#1e293b #0f172a'}}>
             {feed.length === 0 && (
-              <div style={{color:'#334155',fontSize:'.75rem',textAlign:'center',marginTop:'2rem'}}>분석 시작 대기 중...</div>
+              <div style={{color:'#334155',fontSize:'.72rem',textAlign:'center',paddingTop:'2rem'}}>
+                분석 시작 대기 중...
+              </div>
             )}
-            {feed.map((item, i) => (
-              <div key={i} style={{fontSize:'.75rem',lineHeight:'1.5',padding:'.3rem .5rem',borderRadius:'6px',
-                background: item.alert ? 'rgba(239,68,68,0.1)' : 'rgba(30,41,59,0.8)',
-                borderLeft: `3px solid ${item.alert ? '#ef4444' : '#334155'}`}}>
-                <span style={{color:'#475569',marginRight:'.4rem'}}>{item.time}</span>
-                {item.alert && <span style={{color:'#ef4444',marginRight:'.3rem'}}>⚠</span>}
-                <span style={{color: item.alert ? '#fca5a5' : '#94a3b8'}}>{item.text}</span>
+            {feed.map(item => (
+              <div key={item.id} style={{
+                fontSize:'.72rem',lineHeight:'1.5',
+                padding:'.3rem .45rem',borderRadius:'5px',
+                background: item.alert ? 'rgba(239,68,68,0.08)' :
+                  item.type === 'audio' ? 'rgba(139,92,246,0.08)' :
+                  item.type === 'system' ? 'rgba(30,41,59,0.5)' : 'rgba(30,41,59,0.8)',
+                borderLeft: `2px solid ${
+                  item.alert ? '#ef4444' :
+                  item.type === 'audio' ? '#8b5cf6' :
+                  item.type === 'system' ? '#334155' : '#1d4ed8'
+                }`
+              }}>
+                <span style={{color:'#475569',marginRight:'.35rem',fontSize:'.65rem'}}>{item.time}</span>
+                {item.type === 'vision' && <span style={{color:'#60a5fa',marginRight:'.3rem',fontSize:'.65rem'}}>👁</span>}
+                {item.type === 'audio' && <span style={{color:'#a78bfa',marginRight:'.3rem',fontSize:'.65rem'}}>🔊</span>}
+                {item.alert && <span style={{color:'#ef4444',marginRight:'.25rem'}}>⚠</span>}
+                <span style={{color: item.alert ? '#fca5a5' : item.type === 'audio' ? '#c4b5fd' : '#94a3b8'}}>
+                  {item.text}
+                </span>
               </div>
             ))}
+          </div>
+
+          {/* 범례 */}
+          <div style={{padding:'.35rem .6rem',borderTop:'1px solid #1e293b',
+            display:'flex',gap:'.8rem',fontSize:'.65rem',color:'#475569'}}>
+            <span><span style={{color:'#60a5fa'}}>👁</span> 화면분석</span>
+            <span><span style={{color:'#a78bfa'}}>🔊</span> 음성인식</span>
+            <span><span style={{color:'#ef4444'}}>⚠</span> 이상감지</span>
           </div>
         </div>
       </div>
