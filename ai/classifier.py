@@ -114,6 +114,29 @@ class QwenClassifier:
             logger.error("Transformers classify error: %s", exc)
             return ClassificationResult(False, "normal", f"분류 오류: {exc}", 0.0)
 
+    async def analyze_with_prompt(self, image_b64: str, prompt: str) -> str:
+        """Analyze an image with a custom prompt, returning a plain text description."""
+        if self._backend == "mock":
+            return "사용자가 코드 편집기에서 작업 중입니다. Python 파일을 열고 함수를 수정하고 있습니다."
+        elif self._backend == "ollama":
+            payload = {
+                "model": self._model,
+                "prompt": prompt,
+                "images": [image_b64],
+                "stream": False,
+            }
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.post("http://localhost:11434/api/generate", json=payload)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    return data.get("response", "분석 결과 없음").strip()
+            except Exception as exc:
+                logger.error("Ollama analyze_with_prompt error: %s", exc)
+                return f"분석 오류: {exc}"
+        else:
+            return "분석 백엔드가 설정되지 않았습니다."
+
     @staticmethod
     def _parse_response(text: str) -> ClassificationResult:
         import json, re

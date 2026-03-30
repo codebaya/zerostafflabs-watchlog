@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.routes import auth, health, cameras, alerts, telegram_webhook
+from api.routes.screen import router as screen_router
 from config import settings
 from storage.database import init_db
 
@@ -36,6 +37,7 @@ app.include_router(health.router)
 app.include_router(cameras.router)
 app.include_router(alerts.router)
 app.include_router(telegram_webhook.router)
+app.include_router(screen_router)
 
 _STATIC = Path(__file__).parent / "static"
 if _STATIC.is_dir():

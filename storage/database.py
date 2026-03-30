@@ -42,6 +42,16 @@ class Alert(Base):
     detected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class ScreenCapture(Base):
+    __tablename__ = "screen_captures"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    description: Mapped[str] = mapped_column(Text)
+    app_context: Mapped[str] = mapped_column(String(256), default="")
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    snapshot_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+
+
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -122,3 +132,31 @@ async def mark_alert_feedback(db: AsyncSession, alert_id: int, false_positive: b
         await db.commit()
         await db.refresh(alert)
     return alert
+
+
+async def create_screen_capture(
+    db: AsyncSession,
+    description: str,
+    app_context: str = "",
+    snapshot_path: Optional[str] = None,
+) -> ScreenCapture:
+    capture = ScreenCapture(
+        description=description,
+        app_context=app_context,
+        snapshot_path=snapshot_path,
+    )
+    db.add(capture)
+    await db.commit()
+    await db.refresh(capture)
+    return capture
+
+
+async def list_screen_captures(
+    db: AsyncSession,
+    limit: int = 50,
+    offset: int = 0,
+) -> List[ScreenCapture]:
+    result = await db.execute(
+        select(ScreenCapture).order_by(ScreenCapture.captured_at.desc()).limit(limit).offset(offset)
+    )
+    return list(result.scalars().all())

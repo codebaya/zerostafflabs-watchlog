@@ -97,6 +97,17 @@
     .btn-confirm:hover{background:#0284c7}
     .btn-confirm:disabled{background:#334155;color:#64748b;cursor:not-allowed}
     canvas{display:none}
+    /* Screen share */
+    .screen-wrap{background:#000;border-radius:8px;overflow:hidden;margin-bottom:1rem;position:relative;aspect-ratio:16/9}
+    .screen-wrap video{width:100%;height:100%;object-fit:contain}
+    .screen-desc{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.75rem 1rem;font-size:.875rem;color:#e2e8f0;line-height:1.5;min-height:3rem}
+    .timeline-item{display:flex;gap:.75rem;background:#0f172a;border-radius:8px;padding:.6rem 1rem;margin-bottom:.4rem;align-items:flex-start}
+    .timeline-time{font-size:.72rem;color:#64748b;white-space:nowrap;padding-top:.15rem;flex-shrink:0}
+    .timeline-text{font-size:.82rem;color:#e2e8f0;line-height:1.5}
+    .btn-screen{background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:.4rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer}
+    .btn-screen:hover{background:#6d28d9}
+    .btn-screen-stop{background:#7f1d1d;color:#fca5a5;border:none;border-radius:6px;padding:.4rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer}
+    .btn-screen-stop:hover{background:#991b1b}
   </style>
 </head>
 <body>
@@ -371,12 +382,118 @@ function WebcamAnalyzer({ camera, deviceId, token, onAlert }) {
   );
 }
 
+/* ── Screen Monitor ──────────────────────────────────── */
+function ScreenMonitor({ token, onClose }) {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const loopRef = useRef(null);
+  const [stream, setStream] = useState(null);
+  const [status, setStatus] = useState('idle'); // idle | live | error
+  const [currentDesc, setCurrentDesc] = useState('');
+  const [timeline, setTimeline] = useState([]);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const loadTimeline = async () => {
+    try {
+      const items = await apiFetch('/api/analysis/timeline?limit=20', {}, token);
+      setTimeline(items);
+    } catch {}
+  };
+
+  useEffect(() => { loadTimeline(); }, []);
+
+  const startCapture = async () => {
+    try {
+      const s = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      setStream(s);
+      if (videoRef.current) videoRef.current.srcObject = s;
+      setStatus('live');
+      s.getVideoTracks()[0].onended = () => stopCapture();
+
+      loopRef.current = setInterval(async () => {
+        if (!videoRef.current || !canvasRef.current) return;
+        const v = videoRef.current;
+        const c = canvasRef.current;
+        c.width = v.videoWidth || 1280; c.height = v.videoHeight || 720;
+        c.getContext('2d').drawImage(v, 0, 0);
+        const b64 = c.toDataURL('image/jpeg', 0.6).split(',')[1];
+        if (!b64) return;
+        setAnalyzing(true);
+        try {
+          const res = await fetch('/api/analysis/screen-frame', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+            body: JSON.stringify({ frame_b64: b64 }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setCurrentDesc(data.description);
+            setTimeline(t => [data, ...t].slice(0, 50));
+          }
+        } catch {}
+        finally { setAnalyzing(false); }
+      }, 5000);
+    } catch (e) {
+      if (e.name !== 'NotAllowedError') setStatus('error');
+    }
+  };
+
+  const stopCapture = () => {
+    clearInterval(loopRef.current);
+    setStream(s => { s?.getTracks().forEach(t => t.stop()); return null; });
+    setStatus('idle');
+  };
+
+  useEffect(() => () => { clearInterval(loopRef.current); stream?.getTracks().forEach(t=>t.stop()); }, []);
+
+  return (
+    <div className="card" style={{marginBottom:'1.5rem'}}>
+      <div className="card-header">
+        <div className="section-title">🖥️ 화면 공유 AI 모니터링</div>
+        <div style={{display:'flex',gap:'.5rem',alignItems:'center'}}>
+          {analyzing && <span style={{fontSize:'.75rem',color:'#94a3b8'}}>분석 중…</span>}
+          {status !== 'live'
+            ? <button className="btn-screen" onClick={startCapture}>▶ 화면 공유 시작</button>
+            : <button className="btn-screen-stop" onClick={stopCapture}>■ 중지</button>}
+          <button className="btn-sm" onClick={onClose}>✕</button>
+        </div>
+      </div>
+
+      {status === 'live' && (
+        <div className="screen-wrap"><video ref={videoRef} autoPlay muted playsInline /></div>
+      )}
+      <canvas ref={canvasRef} style={{display:'none'}} />
+
+      {currentDesc && (
+        <div style={{marginBottom:'1rem'}}>
+          <div style={{fontSize:'.75rem',color:'#64748b',marginBottom:'.4rem',textTransform:'uppercase',letterSpacing:'.05em'}}>현재 화면 분석</div>
+          <div className="screen-desc">{currentDesc}</div>
+        </div>
+      )}
+
+      <div>
+        <div style={{fontSize:'.75rem',color:'#64748b',marginBottom:'.5rem',textTransform:'uppercase',letterSpacing:'.05em'}}>분석 타임라인</div>
+        {timeline.length === 0
+          ? <div className="empty" style={{padding:'1.5rem'}}>아직 분석 기록이 없습니다. 화면 공유를 시작하면 5초마다 AI가 분석합니다.</div>
+          : timeline.map((item, i) => (
+              <div key={item.id||i} className="timeline-item">
+                <div className="timeline-time">{new Date(item.captured_at).toLocaleTimeString('ko-KR')}</div>
+                <div className="timeline-text">{item.description}</div>
+              </div>
+            ))
+        }
+      </div>
+    </div>
+  );
+}
+
 /* ── Main Dashboard ──────────────────────────────────── */
 function Dashboard({ token, onLogout }) {
   const [cameras, setCameras] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showScreen, setShowScreen] = useState(false);
   const [webcams, setWebcams] = useState([]); // {camera, deviceId}
   const chartRef = useRef(null);
   const chartInst = useRef(null);
@@ -434,6 +551,7 @@ function Dashboard({ token, onLogout }) {
         <div className="header-logo">Watch<span>Log</span></div>
         <div className="header-right">
           <span style={{fontSize:'.8rem',color:'#94a3b8'}}><span className="dot"/>운영 중</span>
+          <button className="btn-screen" onClick={()=>setShowScreen(s=>!s)}>🖥️ 화면 공유</button>
           <button className="btn-primary-sm" onClick={()=>setShowModal(true)}>+ 카메라 추가</button>
           <a href="/docs" target="_blank" style={{textDecoration:'none'}}><button className="btn-sm">API 문서</button></a>
           <button className="btn-sm" onClick={onLogout}>로그아웃</button>
@@ -447,6 +565,9 @@ function Dashboard({ token, onLogout }) {
             <div className="stat-card"><div className="stat-label">오늘 알림</div><div className="stat-val yellow">{todayAlerts.length}</div></div>
             <div className="stat-card"><div className="stat-label">전체 알림</div><div className="stat-val">{alerts.length}</div></div>
           </div>
+
+          {/* Screen monitor */}
+          {showScreen && <ScreenMonitor token={token} onClose={()=>setShowScreen(false)} />}
 
           {/* Active webcams with live preview */}
           {webcams.length > 0 && (
