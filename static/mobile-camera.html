@@ -105,8 +105,9 @@
   <!-- Permission error -->
   <div class="center-msg hidden" id="permError">
     <h2>📷 카메라 권한 필요</h2>
-    <p>WatchLog가 카메라에 접근하려면 권한이 필요합니다.<br>사파리 설정에서 카메라 권한을 허용해 주세요.</p>
-    <button onclick="initCamera()">다시 시도</button>
+    <p style="margin-bottom:.75rem">카메라 접근 권한이 거부되었습니다.<br>아래 안내에 따라 권한을 허용해 주세요.</p>
+    <div id="permGuide" style="text-align:left;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:.9rem 1rem;width:100%;max-width:320px;font-size:.82rem;line-height:1.6;color:#cbd5e1"></div>
+    <button onclick="initCamera()" style="margin-top:1rem">🔄 다시 시도</button>
   </div>
 
   <!-- Init error -->
@@ -120,6 +121,46 @@
 <script>
 const BASE = window.location.origin;
 const CAMERA_KEY = 'wl_mobile_cam_id';
+
+function getPermGuide() {
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS/i.test(ua);
+  const isChrome = /Chrome|CriOS/i.test(ua);
+  const isFirefox = /Firefox|FxiOS/i.test(ua);
+
+  if (isIOS && isSafari) {
+    return `<b>iPhone Safari 권한 허용 방법</b><br>
+① iPhone <b>설정</b> 앱 열기<br>
+② <b>Safari</b> 탭 선택<br>
+③ <b>카메라</b> → <b>허용</b>으로 변경<br>
+④ Safari로 돌아와 <b>다시 시도</b> 버튼 탭`;
+  }
+  if (isIOS && isChrome) {
+    return `<b>iPhone Chrome 권한 허용 방법</b><br>
+① iPhone <b>설정</b> 앱 열기<br>
+② <b>Chrome</b> 탭 선택<br>
+③ <b>카메라</b> → <b>허용</b>으로 변경<br>
+④ Chrome으로 돌아와 <b>다시 시도</b> 버튼 탭`;
+  }
+  if (isChrome) {
+    return `<b>Chrome 권한 허용 방법</b><br>
+① 주소창 오른쪽 <b>🔒 자물쇠(카메라)</b> 아이콘 클릭<br>
+② <b>카메라</b> 항목을 <b>허용</b>으로 변경<br>
+③ 페이지 <b>새로 고침</b> 후 <b>다시 시도</b> 버튼 클릭`;
+  }
+  if (isFirefox) {
+    return `<b>Firefox 권한 허용 방법</b><br>
+① 주소창 왼쪽 <b>🔒 자물쇠</b> 아이콘 클릭<br>
+② <b>카메라 차단됨</b> 옆 <b>×</b> 클릭해 차단 해제<br>
+③ 페이지 새로 고침 후 <b>다시 시도</b> 버튼 클릭`;
+  }
+  // Generic fallback
+  return `<b>카메라 권한 허용 방법</b><br>
+① 브라우저 주소창의 <b>🔒 자물쇠</b> 또는 <b>카메라</b> 아이콘 클릭<br>
+② <b>카메라</b> 항목을 <b>허용</b>으로 변경<br>
+③ 페이지 새로 고침 후 <b>다시 시도</b> 버튼 클릭`;
+}
 
 let stream = null;
 let facingMode = 'environment'; // rear by default
@@ -156,6 +197,7 @@ async function initCamera() {
     setStatus('idle', '카메라 준비됨');
   } catch (e) {
     if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+      document.getElementById('permGuide').innerHTML = getPermGuide();
       document.getElementById('permError').classList.remove('hidden');
     } else {
       document.getElementById('genericErrorMsg').textContent = e.message || String(e);
