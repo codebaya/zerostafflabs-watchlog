@@ -43,3 +43,12 @@ class AlertFeedback(BaseModel):
 class TelegramCallback(BaseModel):
     update_id: int
     callback_query: Optional[dict] = None
+
+
+class FrameAnalysisResponse(BaseModel):
+    camera_id: int
+    should_alert: bool
+    alert_reason: str
+    alert_id: Optional[int] = None
+    event_type: Optional[str] = None
+    confidence: Optional[float] = None
