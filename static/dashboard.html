@@ -396,7 +396,13 @@ function WebcamAnalyzer({ camera, deviceId, token, onAlert }) {
   const canvasRef = useRef(null);
   const loopRef = useRef(null);
   const [status, setStatus] = useState('connecting');
-  const [lastResult, setLastResult] = useState(null);
+  const [feed, setFeed] = useState([]); // AI 설명 피드
+  const feedRef = useRef(null);
+
+  // 피드 자동 스크롤
+  useEffect(() => {
+    if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
+  }, [feed]);
 
   useEffect(() => {
     let stream;
@@ -406,55 +412,72 @@ function WebcamAnalyzer({ camera, deviceId, token, onAlert }) {
         if (videoRef.current) videoRef.current.srcObject = stream;
         setStatus('live');
         loopRef.current = setInterval(async () => {
-          if (!videoRef.current || !canvasRef.current) return;
-          const v = videoRef.current;
-          const c = canvasRef.current;
-          c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
-          c.getContext('2d').drawImage(v, 0, 0);
-          c.toBlob(async (blob) => {
+          if (!canvasRef.current || !videoRef.current) return;
+          const ctx = canvasRef.current.getContext('2d');
+          canvasRef.current.width = videoRef.current.videoWidth || 640;
+          canvasRef.current.height = videoRef.current.videoHeight || 480;
+          ctx.drawImage(videoRef.current, 0, 0);
+          canvasRef.current.toBlob(async blob => {
             if (!blob) return;
             const r = await postFrame(camera.id, blob, token);
-            if (r) {
-              setLastResult(r);
-              if (r.should_alert) onAlert({ ...r, camera_name: camera.name, detected_at: new Date().toISOString() });
-            }
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+            const desc = r?.description || (r?.should_alert ? r?.alert_reason : '정상 상황');
+            const isAlert = r?.should_alert;
+            setFeed(prev => [...prev.slice(-50), { time: timeStr, text: desc, alert: isAlert, type: r?.event_type }]);
+            if (isAlert) onAlert({ ...r, camera_name: camera.name, detected_at: now.toISOString() });
           }, 'image/jpeg', 0.8);
         }, 3000);
-      } catch { setStatus('error'); }
+      } catch(e) { setStatus('error'); }
     })();
-    return () => {
-      clearInterval(loopRef.current);
-      stream?.getTracks().forEach(t => t.stop());
-    };
+    return () => { stream?.getTracks().forEach(t=>t.stop()); clearInterval(loopRef.current); };
   }, [camera.id, deviceId, token]);
 
-  const alerting = lastResult?.should_alert;
   return (
-    <div className="cam-item" style={{flexDirection:'column',alignItems:'stretch',gap:'.5rem'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-        <div>
-          <div className="cam-name">{camera.name}</div>
-          <div className="cam-sub">브라우저 웹캠 · 3초 간격 AI 분석</div>
-        </div>
-        <span className={`badge ${status==='live'?(alerting?'badge-alert':'badge-green'):'badge-gray'}`}
-              style={alerting?{background:'#7f1d1d',color:'#fca5a5'}:{}}>
-          {status==='live'?(alerting?'⚠️ 감지':'🟢 정상'):'연결 중'}
+    <div style={{background:'#0f172a',borderRadius:'12px',overflow:'hidden',border:'1px solid #1e293b'}}>
+      {/* 상단: 카메라 이름 + 상태 */}
+      <div style={{padding:'.6rem 1rem',display:'flex',alignItems:'center',gap:'.5rem',background:'#1e293b'}}>
+        <span style={{fontWeight:600,color:'#e2e8f0'}}>{camera.name}</span>
+        <span style={{fontSize:'.75rem',color:'#64748b'}}>브라우저 웹캠 · 3초 간격 AI 분석</span>
+        <span style={{marginLeft:'auto',fontSize:'.75rem',padding:'.2rem .6rem',borderRadius:'999px',
+          background: status==='live' ? '#166534' : '#7f1d1d', color: status==='live' ? '#4ade80' : '#f87171'}}>
+          {status === 'live' ? '● 정상' : status === 'connecting' ? '연결 중...' : '오류'}
         </span>
       </div>
-      <div style={{position:'relative',borderRadius:'8px',overflow:'hidden',background:'#000',aspectRatio:'16/9'}}>
-        <video ref={videoRef} autoPlay muted playsInline style={{width:'100%',height:'100%',objectFit:'cover'}} />
-        <canvas ref={canvasRef} style={{display:'none'}} />
-        {alerting && (
-          <div style={{position:'absolute',bottom:'.5rem',left:'.5rem',background:'rgba(127,29,29,.9)',borderRadius:'6px',padding:'.25rem .6rem',fontSize:'.75rem',color:'#fca5a5',fontWeight:700}}>
-            ⚠️ {lastResult.event_type} ({Math.round((lastResult.confidence||0)*100)}%)
+
+      {/* 메인: 비디오 + AI 피드 나란히 */}
+      <div style={{display:'flex',gap:0,height:'420px'}}>
+        {/* 비디오 */}
+        <div style={{flex:'0 0 65%',position:'relative',background:'#000'}}>
+          <video ref={videoRef} autoPlay muted playsInline style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+          <canvas ref={canvasRef} style={{display:'none'}}/>
+        </div>
+
+        {/* AI 설명 피드 (유튜브 라이브채팅 스타일) */}
+        <div style={{flex:'1',display:'flex',flexDirection:'column',background:'#0f172a',borderLeft:'1px solid #1e293b'}}>
+          <div style={{padding:'.5rem .8rem',borderBottom:'1px solid #1e293b',fontSize:'.75rem',color:'#64748b',fontWeight:600}}>
+            🤖 AI 실시간 분석
           </div>
-        )}
+          <div ref={feedRef} style={{flex:1,overflowY:'auto',padding:'.5rem',display:'flex',flexDirection:'column',gap:'.4rem'}}>
+            {feed.length === 0 && (
+              <div style={{color:'#334155',fontSize:'.75rem',textAlign:'center',marginTop:'2rem'}}>분석 시작 대기 중...</div>
+            )}
+            {feed.map((item, i) => (
+              <div key={i} style={{fontSize:'.75rem',lineHeight:'1.5',padding:'.3rem .5rem',borderRadius:'6px',
+                background: item.alert ? 'rgba(239,68,68,0.1)' : 'rgba(30,41,59,0.8)',
+                borderLeft: `3px solid ${item.alert ? '#ef4444' : '#334155'}`}}>
+                <span style={{color:'#475569',marginRight:'.4rem'}}>{item.time}</span>
+                {item.alert && <span style={{color:'#ef4444',marginRight:'.3rem'}}>⚠</span>}
+                <span style={{color: item.alert ? '#fca5a5' : '#94a3b8'}}>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-/* ── Screen Monitor ──────────────────────────────────── */
 function ScreenMonitor({ token, onClose }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);

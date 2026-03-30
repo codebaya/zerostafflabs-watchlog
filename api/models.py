@@ -52,3 +52,4 @@ class FrameAnalysisResponse(BaseModel):
     alert_id: Optional[int] = None
     event_type: Optional[str] = None
     confidence: Optional[float] = None
+    description: Optional[str] = None  # AI scene description

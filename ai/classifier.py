@@ -57,12 +57,23 @@ class QwenClassifier:
 
     def _mock_classify(self) -> ClassificationResult:
         """Deterministic mock for local testing without a real model."""
-        choices = [
-            ClassificationResult(False, "normal", "정상 상황입니다. 이상 없음.", 0.95),
-            ClassificationResult(True, "person", "인물이 감지되었습니다. 야간 무단 침입 가능성.", 0.82),
-            ClassificationResult(True, "intrusion", "경계 구역 침입이 감지되었습니다.", 0.78),
+        import random
+        # 90% 정상, 10% 이상 감지 (실제 CCTV 환경 반영)
+        normal_descriptions = [
+            "화면에 사람이 보이고 있습니다. 정상적인 활동으로 보입니다.",
+            "컴퓨터 화면을 보고 있는 사람이 있습니다. 이상 없음.",
+            "실내 공간입니다. 특이 사항 없음.",
+            "사무 환경으로 보입니다. 정상 상황입니다.",
+            "화면에 사람 또는 물체가 감지됩니다. 정상 활동으로 판단됩니다.",
         ]
-        return random.choice(choices)
+        anomaly_descriptions = [
+            "움직임이 감지되었습니다. 확인이 필요합니다.",
+            "비정상적인 패턴이 감지되었습니다.",
+        ]
+        if random.random() < 0.90:
+            return ClassificationResult(False, "normal", random.choice(normal_descriptions), round(random.uniform(0.85, 0.98), 2))
+        else:
+            return ClassificationResult(True, "person", random.choice(anomaly_descriptions), round(random.uniform(0.70, 0.85), 2))
 
     async def _ollama_classify(self, frame: np.ndarray) -> ClassificationResult:
         import cv2

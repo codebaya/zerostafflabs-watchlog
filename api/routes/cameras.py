@@ -141,9 +141,13 @@ async def submit_frame(
 
         logger.warning("ALERT (frame) cam=%d type=%s conf=%.2f", camera_id, event_type, confidence)
 
+    desc = None
+    if result.classification:
+        desc = result.classification.description
     return FrameAnalysisResponse(
         camera_id=camera_id,
         should_alert=result.should_alert,
+        description=desc,
         alert_reason=result.alert_reason,
         alert_id=alert_id,
         event_type=event_type,
@@ -176,9 +180,13 @@ async def virtual_snapshot(camera_id: int = 0):
             else (result.detection.detections[0].confidence if result.detection.detections else 0.5)
         )
 
+    desc = None
+    if result.classification:
+        desc = result.classification.description
     return FrameAnalysisResponse(
         camera_id=camera_id,
         should_alert=result.should_alert,
+        description=desc,
         alert_reason=result.alert_reason,
         alert_id=None,
         event_type=event_type,
