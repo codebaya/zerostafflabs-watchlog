@@ -8,10 +8,8 @@ import logging
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-import cv2
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +68,10 @@ class RTSPFrameCapture:
     def __init__(self, rtsp_url: str, reconnect_delay: float = 3.0):
         self.rtsp_url = rtsp_url
         self.reconnect_delay = reconnect_delay
-        self._cap: Optional[cv2.VideoCapture] = None
+        self._cap: Optional[Any] = None
 
-    def _open(self) -> cv2.VideoCapture:
+    def _open(self) -> Any:
+        import cv2  # lazy import — not needed at server startup
         # Force TCP transport — more reliable than UDP with NVRs
         cap = cv2.VideoCapture(
             f"rtspsrc location={self.rtsp_url} protocols=tcp latency=0 ! "
@@ -98,7 +97,7 @@ class RTSPFrameCapture:
             self._cap.release()
             self._cap = None
 
-    def read_frame(self) -> Optional[np.ndarray]:
+    def read_frame(self) -> Optional[Any]:
         """Read one frame. Returns None if the stream is unavailable."""
         if self._cap is None:
             return None
@@ -108,7 +107,7 @@ class RTSPFrameCapture:
             return None
         return frame
 
-    async def async_read_frame(self) -> Optional[np.ndarray]:
+    async def async_read_frame(self) -> Optional[Any]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.read_frame)
 
