@@ -1,11 +1,14 @@
 """WatchLog — FastAPI application entry point."""
 import asyncio
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-from api.routes import health, cameras, alerts, telegram_webhook
+from api.routes import auth, health, cameras, alerts, telegram_webhook
 from config import settings
 from storage.database import init_db
 
@@ -28,10 +31,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(health.router)
 app.include_router(cameras.router)
 app.include_router(alerts.router)
 app.include_router(telegram_webhook.router)
+
+_STATIC = Path(__file__).parent / "static"
+if _STATIC.is_dir():
+    app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return FileResponse(str(_STATIC / "dashboard.html"))
 
 
 @app.on_event("startup")

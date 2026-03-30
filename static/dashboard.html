@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WatchLog — AI CCTV 모니터링</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+    /* Login */
+    .login-wrap { display: flex; align-items: center; justify-content: center; flex: 1; padding: 2rem; }
+    .login-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 2.5rem; width: 100%; max-width: 400px; }
+    .logo { font-size: 2rem; font-weight: 800; color: #38bdf8; margin-bottom: 0.25rem; }
+    .logo span { color: #e2e8f0; }
+    .tagline { color: #94a3b8; font-size: 0.875rem; margin-bottom: 2rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-group input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 0.75rem 1rem; color: #e2e8f0; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+    .form-group input:focus { border-color: #38bdf8; }
+    .btn { width: 100%; background: #0ea5e9; color: white; border: none; border-radius: 8px; padding: 0.85rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn:hover { background: #0284c7; }
+    .btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .error-msg { background: #450a0a; border: 1px solid #7f1d1d; border-radius: 8px; padding: 0.75rem; color: #fca5a5; font-size: 0.85rem; margin-bottom: 1rem; }
+    /* Dashboard */
+    .header { background: #1e293b; border-bottom: 1px solid #334155; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+    .header-logo { font-size: 1.25rem; font-weight: 800; color: #38bdf8; }
+    .header-logo span { color: #e2e8f0; }
+    .header-right { display: flex; align-items: center; gap: 1rem; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block; margin-right: 0.5rem; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .btn-sm { background: transparent; border: 1px solid #334155; color: #94a3b8; border-radius: 6px; padding: 0.4rem 0.9rem; font-size: 0.8rem; cursor: pointer; }
+    .btn-sm:hover { border-color: #64748b; color: #e2e8f0; }
+    .main { padding: 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 1.25rem; }
+    .stat-label { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: #e2e8f0; }
+    .stat-value.green { color: #22c55e; }
+    .stat-value.yellow { color: #fbbf24; }
+    .stat-value.red { color: #f87171; }
+    .section-title { font-size: 1rem; font-weight: 600; color: #94a3b8; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+    @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 1.5rem; }
+    .camera-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .camera-item { display: flex; align-items: center; justify-content: space-between; background: #0f172a; border-radius: 8px; padding: 0.875rem 1rem; }
+    .camera-name { font-weight: 500; font-size: 0.9rem; }
+    .camera-url { font-size: 0.75rem; color: #64748b; margin-top: 0.2rem; }
+    .badge { border-radius: 20px; padding: 0.2rem 0.7rem; font-size: 0.75rem; font-weight: 600; }
+    .badge-green { background: #14532d; color: #86efac; }
+    .badge-gray { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    .alert-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .alert-item { display: flex; align-items: flex-start; gap: 0.75rem; background: #0f172a; border-radius: 8px; padding: 0.75rem 1rem; }
+    .alert-icon { font-size: 1.25rem; flex-shrink: 0; margin-top: 0.1rem; }
+    .alert-desc { font-size: 0.875rem; font-weight: 500; }
+    .alert-meta { font-size: 0.75rem; color: #64748b; margin-top: 0.2rem; }
+    .empty-state { text-align: center; color: #475569; padding: 2rem; font-size: 0.875rem; }
+    .add-camera-form { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; border-top: 1px solid #334155; padding-top: 1rem; }
+    .input-row { display: flex; gap: 0.5rem; }
+    .input-sm { flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 0.6rem 0.75rem; color: #e2e8f0; font-size: 0.85rem; outline: none; }
+    .input-sm:focus { border-color: #38bdf8; }
+    .btn-add { background: #0ea5e9; color: white; border: none; border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .btn-add:hover { background: #0284c7; }
+    .loading { text-align: center; color: #475569; padding: 1.5rem; }
+    canvas { max-height: 200px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const API = '';
+
+async function apiCall(path, opts = {}, token = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(API + path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+function LoginPage({ onLogin }) {
+  const [key, setKey] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!key.trim()) return;
+    setLoading(true); setError('');
+    try {
+      const data = await apiCall('/api/auth/token', {
+        method: 'POST',
+        body: JSON.stringify({ api_key: key.trim() })
+      });
+      onLogin(data.access_token, key.trim());
+    } catch (err) {
+      setError('API 키가 올바르지 않습니다. 다시 확인해주세요.');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="logo">Watch<span>Log</span></div>
+        <div className="tagline">AI 기반 CCTV 이상 감지 플랫폼</div>
+        {error && <div className="error-msg">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>API 키</label>
+            <input
+              type="password"
+              value={key}
+              onChange={e => setKey(e.target.value)}
+              placeholder="API 키를 입력하세요"
+              autoFocus
+            />
+          </div>
+          <button className="btn" type="submit" disabled={loading || !key.trim()}>
+            {loading ? '인증 중...' : '로그인'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ token, apiKey, onLogout }) {
+  const [cameras, setCameras] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newCam, setNewCam] = useState({ name: '', rtsp_url: '', location: '' });
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
+
+  const load = async () => {
+    try {
+      const [cams, alts] = await Promise.all([
+        apiCall('/cameras', {}, token),
+        apiCall('/alerts', {}, token),
+      ]);
+      setCameras(cams);
+      setAlerts(alts);
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, []);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    if (chartInstance.current) chartInstance.current.destroy();
+    // Build last-7-days alert counts
+    const days = [];
+    const counts = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      days.push(`${d.getMonth()+1}/${d.getDate()}`);
+      counts.push(alerts.filter(a => {
+        const ad = new Date(a.detected_at || a.created_at || 0);
+        return ad.toDateString() === d.toDateString();
+      }).length);
+    }
+    chartInstance.current = new Chart(chartRef.current, {
+      type: 'bar',
+      data: {
+        labels: days,
+        datasets: [{ label: '이상 감지', data: counts, backgroundColor: '#0ea5e9', borderRadius: 4 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
+          y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', stepSize: 1 } }
+        }
+      }
+    });
+  }, [alerts]);
+
+  const addCamera = async () => {
+    if (!newCam.name || !newCam.rtsp_url) return;
+    try {
+      await apiCall('/cameras', { method: 'POST', body: JSON.stringify(newCam) }, token);
+      setNewCam({ name: '', rtsp_url: '', location: '' });
+      load();
+    } catch {}
+  };
+
+  const activeCams = cameras.filter(c => c.enabled !== false);
+  const todayAlerts = alerts.filter(a => {
+    const d = new Date(a.detected_at || a.created_at || 0);
+    return d.toDateString() === new Date().toDateString();
+  });
+
+  return (
+    <div className="app">
+      <div className="header">
+        <div className="header-logo">Watch<span>Log</span></div>
+        <div className="header-right">
+          <span style={{fontSize:'0.8rem', color:'#94a3b8'}}>
+            <span className="status-dot"></span>운영 중
+          </span>
+          <button className="btn-sm" onClick={onLogout}>로그아웃</button>
+          <a href="/docs" target="_blank" style={{textDecoration:'none'}}>
+            <button className="btn-sm">API 문서</button>
+          </a>
+        </div>
+      </div>
+      <div className="main">
+        {loading ? <div className="loading">불러오는 중...</div> : (
+          <>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-label">등록 카메라</div>
+                <div className="stat-value">{cameras.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">활성 카메라</div>
+                <div className={`stat-value ${activeCams.length > 0 ? 'green' : 'gray'}`}>{activeCams.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">오늘 알림</div>
+                <div className={`stat-value ${todayAlerts.length > 0 ? 'yellow' : 'green'}`}>{todayAlerts.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">전체 알림</div>
+                <div className="stat-value">{alerts.length}</div>
+              </div>
+            </div>
+
+            <div className="grid-2">
+              <div className="card">
+                <div className="section-title">카메라 현황</div>
+                {cameras.length === 0 ? (
+                  <div className="empty-state">등록된 카메라가 없습니다</div>
+                ) : (
+                  <div className="camera-list">
+                    {cameras.map(c => (
+                      <div key={c.id} className="camera-item">
+                        <div>
+                          <div className="camera-name">{c.name}</div>
+                          {c.location && <div className="camera-url">{c.location}</div>}
+                        </div>
+                        <span className={`badge ${c.enabled !== false ? 'badge-green' : 'badge-gray'}`}>
+                          {c.enabled !== false ? '활성' : '비활성'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="add-camera-form">
+                  <div className="input-row">
+                    <input className="input-sm" placeholder="카메라 이름" value={newCam.name} onChange={e=>setNewCam({...newCam,name:e.target.value})} />
+                    <input className="input-sm" placeholder="위치 (선택)" value={newCam.location} onChange={e=>setNewCam({...newCam,location:e.target.value})} />
+                  </div>
+                  <div className="input-row">
+                    <input className="input-sm" placeholder="rtsp://..." value={newCam.rtsp_url} onChange={e=>setNewCam({...newCam,rtsp_url:e.target.value})} />
+                    <button className="btn-add" onClick={addCamera}>추가</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="section-title">최근 이상 감지</div>
+                {alerts.length === 0 ? (
+                  <div className="empty-state">감지된 이상이 없습니다</div>
+                ) : (
+                  <div className="alert-list">
+                    {alerts.slice(0, 8).map(a => (
+                      <div key={a.id} className="alert-item">
+                        <div className="alert-icon">⚠️</div>
+                        <div>
+                          <div className="alert-desc">{a.camera_name} — {a.event_type}</div>
+                          <div className="alert-meta">
+                            신뢰도 {Math.round((a.confidence||0)*100)}% · {a.detected_at ? new Date(a.detected_at).toLocaleString('ko-KR') : ''}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="section-title">주간 이상 감지 추이</div>
+              <div style={{height:'200px', position:'relative'}}>
+                <canvas ref={chartRef}></canvas>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [token, setToken] = useState(localStorage.getItem('wl_token'));
+  const [apiKey, setApiKey] = useState(localStorage.getItem('wl_key'));
+
+  const handleLogin = (t, k) => {
+    setToken(t); setApiKey(k);
+    localStorage.setItem('wl_token', t);
+    localStorage.setItem('wl_key', k);
+  };
+  const handleLogout = () => {
+    setToken(null); setApiKey(null);
+    localStorage.removeItem('wl_token');
+    localStorage.removeItem('wl_key');
+  };
+
+  if (!token) return <LoginPage onLogin={handleLogin} />;
+  return <Dashboard token={token} apiKey={apiKey} onLogout={handleLogout} />;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
