@@ -30,12 +30,13 @@ class ClassificationResult:
 
 
 _ANOMALY_PROMPT = (
-    "You are a night-time CCTV security analyst. "
-    "Analyze this frame and determine if there is any anomaly or security concern. "
-    "Reply in JSON with keys: is_anomaly (bool), event_type (string), "
-    "description (string in Korean), confidence (0.0-1.0). "
-    "event_type choices: normal, person, intrusion, theft, fire, vandalism, anomaly. "
-    "Be concise. Reply ONLY with valid JSON, no markdown."
+    "당신은 CCTV 영상 분석 전문가입니다. "
+    "화면에 보이는 모든 것을 구체적으로 묘사하세요. "
+    "인물이 있다면: 추정 성별, 나이대, 옷 색상과 스타일, 머리 모양, 안경 착용 여부, 현재 동작과 자세. "
+    "배경: 실내/실외 여부, 보이는 가구나 사물 (책상, 의자, 벽 색상 등), 조명 상태. "
+    "반드시 JSON으로만 답하세요 (마크다운 금지): "
+    '{"is_anomaly": false, "event_type": "scene", "description": "한국어 2-3문장 상황 묘사", "confidence": 0.9}' "
+    "description은 반드시 구체적인 장면 묘사여야 합니다. 절대 '정상'이라는 단어만 쓰지 마세요."
 )
 
 
@@ -56,24 +57,19 @@ class QwenClassifier:
             return self._mock_classify()
 
     def _mock_classify(self) -> ClassificationResult:
-        """Deterministic mock for local testing without a real model."""
+        """Realistic scene description mock (no AI model required)."""
         import random
-        # 90% 정상, 10% 이상 감지 (실제 CCTV 환경 반영)
-        normal_descriptions = [
-            "화면에 사람이 보이고 있습니다. 정상적인 활동으로 보입니다.",
-            "컴퓨터 화면을 보고 있는 사람이 있습니다. 이상 없음.",
-            "실내 공간입니다. 특이 사항 없음.",
-            "사무 환경으로 보입니다. 정상 상황입니다.",
-            "화면에 사람 또는 물체가 감지됩니다. 정상 활동으로 판단됩니다.",
+        # 실제 CCTV 기록처럼 구체적인 장면 묘사
+        scenes = [
+            "30대 추정 남성 1명이 화면 중앙에 위치. 흰색 반팔 티셔츠 착용, 짧은 검은 머리, 검은 뿔테 안경 착용. 나무 재질 책상 앞에 앉아 정면을 응시하고 있음.",
+            "안경 착용 남성이 고개를 약간 왼쪽으로 돌린 상태. 흰 상의 착용. 배경은 밝은 회색 벽. 검은 사무용 의자 등받이 보임.",
+            "남성 1명이 책상에 양손을 올려놓고 앉아 있음. 흰 반팔 티셔츠, 안경 착용. 실내 환경, 조명 밝음. 뒤쪽으로 빈 공간 보임.",
+            "인물이 몸을 약간 앞으로 숙이고 있음. 흰 상의, 안경. 책상 위 특정 물체를 바라보는 듯한 자세. 실내, 조명 양호.",
+            "카메라 앵글 기준 인물이 약간 오른쪽에 위치. 흰 티셔츠 착용 남성. 편안한 자세로 앉아 있음. 배경에 회색 벽과 문 틀 일부 보임.",
+            "남성이 손을 들어올려 얼굴 근처에 위치시킴. 흰 반팔 티셔츠, 안경. 무언가를 만지거나 조작하는 동작으로 보임.",
+            "실내 공간. 책상과 사무 의자 배치. 남성 1명 착석 중. 조명 밝고 배경 깔끔함. 특이 사항 없음.",
         ]
-        anomaly_descriptions = [
-            "움직임이 감지되었습니다. 확인이 필요합니다.",
-            "비정상적인 패턴이 감지되었습니다.",
-        ]
-        if random.random() < 0.90:
-            return ClassificationResult(False, "normal", random.choice(normal_descriptions), round(random.uniform(0.85, 0.98), 2))
-        else:
-            return ClassificationResult(True, "person", random.choice(anomaly_descriptions), round(random.uniform(0.70, 0.85), 2))
+        return ClassificationResult(False, "scene", random.choice(scenes), round(random.uniform(0.88, 0.97), 2))
 
     async def _ollama_classify(self, frame: np.ndarray) -> ClassificationResult:
         import cv2
